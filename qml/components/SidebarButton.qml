@@ -6,41 +6,66 @@ Button {
     property string glyph: ""
     property bool selected: false
 
-    implicitWidth: 176
-    implicitHeight: 46
-    leftPadding: 14
-    rightPadding: 14
+    implicitWidth: 204
+    implicitHeight: 44
+    leftPadding: 12
+    rightPadding: 12
+    hoverEnabled: true
 
     contentItem: Row {
-        spacing: 12
-        Text {
-            width: 22
-            text: control.glyph
-            color: control.selected ? "#f1d58b" : "#928d7c"
-            font.pixelSize: 18
-            horizontalAlignment: Text.AlignHCenter
+        spacing: 10
+
+        Rectangle {
+            width: 28
+            height: 28
+            radius: 9
+            anchors.verticalCenter: parent.verticalCenter
+            color: control.selected ? "#3a2f19" : control.hovered ? "#272116" : "transparent"
+
+            Text {
+                anchors.centerIn: parent
+                text: control.glyph
+                color: control.selected ? "#edc86d" : "#938360"
+                font.pixelSize: control.glyph === "⌂" ? 17 : 14
+                horizontalAlignment: Text.AlignHCenter
+            }
         }
+
         Text {
             text: control.text
-            color: control.selected ? "#f5e7bf" : "#aaa493"
-            font.pixelSize: 14
+            color: control.selected ? "#f6edd8" : control.hovered ? "#dfd5c1" : "#a99c82"
+            font.pixelSize: 13
             font.weight: control.selected ? Font.DemiBold : Font.Normal
             anchors.verticalCenter: parent.verticalCenter
+
+            Behavior on color { ColorAnimation { duration: 120 } }
         }
     }
 
     background: Rectangle {
-        radius: 12
-        color: control.selected ? "#3a301b" : control.hovered ? "#29251a" : "transparent"
+        radius: 13
+        color: control.selected ? "#272014" : control.hovered ? "#17140e" : "transparent"
+        border.width: 0
+
+        Behavior on color { ColorAnimation { duration: 120 } }
+
         Rectangle {
             visible: control.selected
-            width: 3
-            height: 20
-            radius: 2
-            color: "#d8b45e"
-            anchors.left: parent.left
-            anchors.leftMargin: 2
+            width: 36
+            height: 22
+            radius: 11
+            anchors.right: parent.right
+            anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
+            color: "#100e09"
+
+            Text {
+                anchors.centerIn: parent
+                text: "•••"
+                color: "#79663d"
+                font.pixelSize: 10
+                font.letterSpacing: 1
+            }
         }
     }
 }

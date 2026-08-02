@@ -1,28 +1,44 @@
 import QtQuick
-import QtQuick.Controls
 
 Item {
     id: root
     property var media: ({})
     signal clicked
 
-    implicitWidth: 174
-    implicitHeight: 292
+    function formatDuration(seconds) {
+        const totalMinutes = Math.max(0, Math.round(Number(seconds || 0) / 60))
+        if (totalMinutes < 1)
+            return ""
+        const hours = Math.floor(totalMinutes / 60)
+        const minutes = totalMinutes % 60
+        if (hours > 0)
+            return hours + "小时" + (minutes > 0 ? " " + minutes + "分" : "")
+        return minutes + "分钟"
+    }
+
+    function typeLabel(type) {
+        if (type === "Movie") return "电影"
+        if (type === "Series" || type === "Episode") return "剧集"
+        return type || "影视"
+    }
+
+    implicitWidth: 200
+    implicitHeight: 354
 
     Rectangle {
         id: posterFrame
         width: parent.width
-        height: 244
-        radius: 14
-        color: "#211f18"
+        height: Math.round(width * 1.48)
+        radius: 12
+        color: "#17140e"
         clip: true
-        scale: mouse.containsMouse ? 1.025 : 1
-        Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+        scale: mouse.containsMouse ? 1.018 : 1
+        Behavior on scale { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
 
         Image {
             id: poster
             anchors.fill: parent
-            source: root.media.image || ""
+            source: root.media.image || root.media.backdrop || ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
@@ -32,8 +48,8 @@ Item {
             anchors.fill: parent
             visible: poster.status !== Image.Ready
             gradient: Gradient {
-                GradientStop { position: 0; color: "#3a3322" }
-                GradientStop { position: 1; color: "#171611" }
+                GradientStop { position: 0; color: "#2e2718" }
+                GradientStop { position: 1; color: "#100e0a" }
             }
             Text {
                 anchors.centerIn: parent
@@ -49,25 +65,36 @@ Item {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 4
+            radius: 2
             color: "#4a4331"
             Rectangle {
                 height: parent.height
                 width: parent.width * Math.min(1, (root.media.position || 0) / root.media.duration)
+                radius: 2
                 color: "#d8b45e"
             }
         }
 
         Rectangle {
-            width: 48
-            height: 48
-            radius: 24
+            anchors.fill: parent
+            color: "#52000000"
+            opacity: mouse.containsMouse ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 140 } }
+        }
+
+        Rectangle {
+            width: 46
+            height: 46
+            radius: 23
             anchors.centerIn: parent
-            color: "#d8b45e"
+            color: "#d9232019"
+            border.width: 1
+            border.color: "#a68b55"
             opacity: mouse.containsMouse ? 1 : 0
             scale: mouse.containsMouse ? 1 : 0.8
-            Behavior on opacity { NumberAnimation { duration: 130 } }
-            Behavior on scale { NumberAnimation { duration: 130 } }
-            Text { anchors.centerIn: parent; text: "▶"; color: "white"; font.pixelSize: 17 }
+            Behavior on opacity { NumberAnimation { duration: 140 } }
+            Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutBack } }
+            Text { anchors.centerIn: parent; text: "▶"; color: "#f5f0e5"; font.pixelSize: 15 }
         }
     }
 
@@ -76,18 +103,73 @@ Item {
         anchors.topMargin: 10
         width: parent.width
         text: root.media.name || "未命名"
-        color: "#f2eee3"
-        font.pixelSize: 14
-        font.weight: Font.Medium
+        color: mouse.containsMouse ? "#e7c979" : "#f2eee3"
+        font.pixelSize: 15
+        font.weight: Font.DemiBold
         elide: Text.ElideRight
+
+        Behavior on color { ColorAnimation { duration: 120 } }
     }
-    Text {
-        anchors.bottom: parent.bottom
+
+    Row {
+        anchors.top: posterFrame.bottom
+        anchors.topMargin: 36
         width: parent.width
-        text: root.media.seriesName || root.media.subtitle || root.media.type || ""
-        color: "#938d7b"
-        font.pixelSize: 12
-        elide: Text.ElideRight
+        height: 18
+        spacing: 5
+        clip: true
+
+        Text {
+            text: root.media.year || root.media.subtitle || ""
+            color: "#918a7b"
+            font.pixelSize: 11
+        }
+
+        Text {
+            visible: text.length > 0
+            text: root.media.genre || root.typeLabel(root.media.type)
+            color: "#918a7b"
+            font.pixelSize: 11
+            leftPadding: 7
+
+            Rectangle {
+                width: 2; height: 2; radius: 1
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                color: "#716957"
+            }
+        }
+
+        Text {
+            visible: Number(root.media.communityRating || 0) > 0
+            text: Number(root.media.communityRating || 0).toFixed(1)
+            color: "#d8ad4d"
+            font.pixelSize: 11
+            font.weight: Font.DemiBold
+            leftPadding: 7
+
+            Rectangle {
+                width: 2; height: 2; radius: 1
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                color: "#716957"
+            }
+        }
+
+        Text {
+            visible: text.length > 0
+            text: root.formatDuration(root.media.duration)
+            color: "#918a7b"
+            font.pixelSize: 11
+            leftPadding: 7
+
+            Rectangle {
+                width: 2; height: 2; radius: 1
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                color: "#716957"
+            }
+        }
     }
 
     MouseArea {

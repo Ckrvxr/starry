@@ -181,6 +181,8 @@ QVariantMap EmbyClient::mapItem(const QJsonObject &item) const
     const QJsonObject userData = item.value("UserData").toObject();
     const qint64 positionTicks = userData.value("PlaybackPositionTicks").toVariant().toLongLong();
     const QString type = item.value("Type").toString();
+    const QJsonArray genres = item.value("Genres").toArray();
+    const QString genre = genres.isEmpty() ? QString() : genres.first().toString();
     QString subtitle;
     if (type == "Episode") {
         subtitle = tr("第 %1 季 · 第 %2 集")
@@ -193,6 +195,8 @@ QVariantMap EmbyClient::mapItem(const QJsonObject &item) const
         {"id", item.value("Id").toString()},
         {"name", item.value("Name").toString()},
         {"type", type},
+        {"year", item.value("ProductionYear").toVariant().toString()},
+        {"genre", genre},
         {"overview", item.value("Overview").toString()},
         {"subtitle", subtitle},
         {"communityRating", item.value("CommunityRating").toDouble()},
@@ -229,7 +233,7 @@ void EmbyClient::loadItems(const QString &parentId, const QString &includeTypes)
     query.addQueryItem("SortBy", "DateCreated,SortName");
     query.addQueryItem("SortOrder", "Descending");
     query.addQueryItem("Limit", "100");
-    query.addQueryItem("Fields", "Overview,PrimaryImageAspectRatio,MediaSourceCount");
+    query.addQueryItem("Fields", "Overview,Genres,PrimaryImageAspectRatio,MediaSourceCount");
     query.addQueryItem("EnableUserData", "true");
     if (!parentId.isEmpty())
         query.addQueryItem("ParentId", parentId);
@@ -255,7 +259,7 @@ void EmbyClient::search(const QString &term)
     query.addQueryItem("Recursive", "true");
     query.addQueryItem("Limit", "100");
     query.addQueryItem("IncludeItemTypes", "Movie,Series,Episode");
-    query.addQueryItem("Fields", "Overview");
+    query.addQueryItem("Fields", "Overview,Genres,PrimaryImageAspectRatio");
     const QString path = QStringLiteral("/emby/Users/%1/Items?%2").arg(m_userId, query.toString(QUrl::FullyEncoded));
     request("GET", path, {}, [this](const QJsonObject &json) {
         QVariantList next;

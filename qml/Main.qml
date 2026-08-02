@@ -15,7 +15,25 @@ ApplicationWindow {
     flags: Qt.Window | Qt.FramelessWindowHint
 
     property int selectedNav: 0
+    property string selectedLibraryName: ""
+    property int homeHeroIndex: 0
+    readonly property int homeHeroCount: Math.min(5, emby.items.length)
+    readonly property var homeHero: homeHeroCount > 0
+        ? emby.items[Math.min(homeHeroIndex, homeHeroCount - 1)] : ({})
     property bool isFullscreen: visibility === Window.FullScreen
+
+    function serverNameFromUrl(value) {
+        const host = String(value || "")
+            .replace(/^https?:\/\//, "")
+            .replace(/\/.*$/, "")
+        return host.length > 0 ? host : "Emby Server"
+    }
+
+    function stepHomeHero(step) {
+        if (homeHeroCount < 1)
+            return
+        homeHeroIndex = (homeHeroIndex + step + homeHeroCount) % homeHeroCount
+    }
 
     Rectangle {
         id: windowSurface
@@ -111,63 +129,251 @@ ApplicationWindow {
         }
 
         Item {
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0; color: "#070706" }
+                    GradientStop { position: 0.48; color: "#0d0c09" }
+                    GradientStop { position: 1; color: "#171207" }
+                }
+            }
+
+            Rectangle {
+                width: 520
+                height: 520
+                radius: 260
+                x: parent.width - 320
+                y: -310
+                color: "#c89732"
+                opacity: 0.045
+            }
+
+            Rectangle {
+                width: 380
+                height: 380
+                radius: 190
+                x: parent.width * 0.35
+                y: parent.height - 170
+                color: "#8a6622"
+                opacity: 0.025
+            }
+
+            Repeater {
+                model: [
+                    { "x": 0.24, "y": 0.09, "s": 2, "o": 0.24 },
+                    { "x": 0.49, "y": 0.16, "s": 1, "o": 0.32 },
+                    { "x": 0.73, "y": 0.08, "s": 2, "o": 0.2 },
+                    { "x": 0.91, "y": 0.31, "s": 1, "o": 0.26 },
+                    { "x": 0.64, "y": 0.7, "s": 2, "o": 0.18 },
+                    { "x": 0.38, "y": 0.86, "s": 1, "o": 0.28 },
+                    { "x": 0.84, "y": 0.91, "s": 2, "o": 0.2 }
+                ]
+                delegate: Rectangle {
+                    required property var modelData
+                    x: parent.width * modelData.x
+                    y: parent.height * modelData.y
+                    width: modelData.s
+                    height: modelData.s
+                    radius: width / 2
+                    color: "#e0bd67"
+                    opacity: modelData.o
+                }
+            }
+
             RowLayout {
                 anchors.fill: parent
                 spacing: 0
 
                 Rectangle {
-                    Layout.preferredWidth: 216
+                    id: sidebarPanel
+                    Layout.preferredWidth: 248
                     Layout.fillHeight: true
-                    color: "#12120f"
-                    border.color: "#29261b"
+                    Layout.leftMargin: 12
+                    Layout.topMargin: 12
+                    Layout.bottomMargin: 12
+                    radius: 26
+                    clip: true
+                    color: "transparent"
+                    border.width: 0
 
-                    Column {
-                        anchors.fill: parent
-                        anchors.margins: 20
-                        spacing: 8
-                        Row {
-                            height: 64; spacing: 9
-                            Text { text: "✦"; color: "#d8b45e"; font.pixelSize: 28; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: "Starry"; color: "white"; font.pixelSize: 22; font.weight: Font.Bold; anchors.verticalCenter: parent.verticalCenter }
+                    Repeater {
+                        model: [
+                            { "x": 25, "y": 96, "s": 2, "o": 0.55 },
+                            { "x": 207, "y": 122, "s": 2, "o": 0.38 },
+                            { "x": 226, "y": 242, "s": 1, "o": 0.56 },
+                            { "x": 18, "y": 334, "s": 2, "o": 0.28 },
+                            { "x": 216, "y": 468, "s": 2, "o": 0.4 },
+                            { "x": 28, "y": 596, "s": 1, "o": 0.5 },
+                            { "x": 201, "y": 690, "s": 1, "o": 0.42 }
+                        ]
+                        delegate: Rectangle {
+                            required property var modelData
+                            x: modelData.x
+                            y: modelData.y
+                            width: modelData.s
+                            height: modelData.s
+                            radius: width / 2
+                            color: "#e4c36f"
+                            opacity: modelData.o
                         }
-                        SidebarButton {
-                            text: "首页"; glyph: "⌂"; selected: window.selectedNav === 0
-                            onClicked: { window.selectedNav = 0; emby.loadItems() }
-                        }
-                        SidebarButton {
-                            text: "电影"; glyph: "▶"; selected: window.selectedNav === 1
-                            onClicked: { window.selectedNav = 1; emby.loadItems("", "Movie") }
-                        }
-                        SidebarButton {
-                            text: "剧集"; glyph: "▣"; selected: window.selectedNav === 2
-                            onClicked: { window.selectedNav = 2; emby.loadItems("", "Series") }
-                        }
-                        Text { text: "媒体库"; color: "#827962"; font.pixelSize: 11; topPadding: 20; leftPadding: 14 }
-                        Repeater {
-                            model: emby.libraries
-                            delegate: SidebarButton {
-                                required property var modelData
-                                required property int index
-                                text: modelData.name
-                                glyph: "◇"
-                                onClicked: { window.selectedNav = 10 + index; emby.loadItems(modelData.id) }
+                    }
+
+                    Item {
+                        id: brandHeader
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.leftMargin: 18
+                        anchors.rightMargin: 18
+                        anchors.topMargin: 14
+                        height: 66
+
+                        Rectangle {
+                            width: 38
+                            height: 38
+                            radius: 12
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: "#211b10"
+                            border.width: 0
+
+                            Rectangle {
+                                width: 22
+                                height: 22
+                                radius: 11
+                                anchors.centerIn: parent
+                                color: "#100e09"
                             }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "✦"
+                                color: "#f0ca72"
+                                font.pixelSize: 20
+                            }
+                        }
+
+                        Column {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 49
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 1
+
+                            Text {
+                                text: "STARRY"
+                                color: "#f7eed9"
+                                font.pixelSize: 17
+                                font.weight: Font.Bold
+                                font.letterSpacing: 2.2
+                            }
+                            Text {
+                                text: "YOUR MEDIA UNIVERSE"
+                                color: "#897856"
+                                font.pixelSize: 7
+                                font.letterSpacing: 1.25
+                            }
+                        }
+
+                        Rectangle {
+                            width: 6
+                            height: 6
+                            radius: 3
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: "#d1aa54"
                         }
                     }
 
                     Column {
+                        id: primaryNavigation
                         anchors.left: parent.left
                         anchors.right: parent.right
+                        anchors.top: brandHeader.bottom
+                        anchors.leftMargin: 18
+                        anchors.rightMargin: 18
+                        anchors.topMargin: 8
+                        spacing: 4
+
+                        SidebarButton {
+                            text: "首页"; glyph: "⌂"; selected: window.selectedNav === 0
+                            onClicked: {
+                                window.selectedNav = 0
+                                window.selectedLibraryName = ""
+                                window.homeHeroIndex = 0
+                                emby.loadItems()
+                            }
+                        }
+                        SidebarButton {
+                            text: "电影"; glyph: "◆"; selected: window.selectedNav === 1
+                            onClicked: { window.selectedNav = 1; window.selectedLibraryName = ""; emby.loadItems("", "Movie") }
+                        }
+                        SidebarButton {
+                            text: "剧集"; glyph: "▦"; selected: window.selectedNav === 2
+                            onClicked: { window.selectedNav = 2; window.selectedLibraryName = ""; emby.loadItems("", "Series") }
+                        }
+                    }
+
+                    Row {
+                        id: serversSectionHeader
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: primaryNavigation.bottom
+                        anchors.leftMargin: 20
+                        anchors.rightMargin: 20
+                        anchors.topMargin: 18
+                        height: 30
+
+                        Text {
+                            text: "媒体服务器"
+                            color: "#8f7c58"
+                            font.pixelSize: 10
+                            font.weight: Font.DemiBold
+                            font.letterSpacing: 1.2
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Text {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "1 ONLINE"
+                            color: "#776846"
+                            font.pixelSize: 8
+                            font.letterSpacing: 0.8
+                        }
+                    }
+
+                    Flickable {
+                        id: serversFlick
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: serversSectionHeader.bottom
                         anchors.bottom: parent.bottom
-                        anchors.margins: 20
-                        spacing: 3
-                        Text { text: emby.userName; color: "#eee6d2"; font.pixelSize: 13; font.weight: Font.DemiBold }
-                        Button {
-                            text: "退出登录"
-                            flat: true
-                            leftPadding: 0
-                            contentItem: Text { text: parent.text; color: "#817962"; font.pixelSize: 11 }
-                            onClicked: emby.logout()
+                        anchors.leftMargin: 18
+                        anchors.rightMargin: 18
+                        anchors.topMargin: 4
+                        anchors.bottomMargin: 18
+                        contentHeight: serversColumn.implicitHeight
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+
+                        Column {
+                            id: serversColumn
+                            width: serversFlick.width
+
+                            ServerLibraryGroup {
+                                width: parent.width
+                                serverName: window.serverNameFromUrl(emby.serverUrl)
+                                serverAddress: "EMBY  ·  已连接"
+                                libraries: emby.libraries
+                                selectedLibrary: window.selectedNav >= 10 ? window.selectedNav - 10 : -1
+
+                                onLibraryClicked: function(index, libraryId, libraryName) {
+                                    window.selectedNav = 10 + index
+                                    window.selectedLibraryName = libraryName
+                                    emby.loadItems(libraryId)
+                                }
+                            }
                         }
                     }
                 }
@@ -176,9 +382,31 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
+                    HomeHero {
+                        id: homeHeroPage
+                        anchors.fill: parent
+                        visible: window.selectedNav === 0
+                        media: window.homeHero
+                        currentIndex: window.homeHeroIndex
+                        itemCount: window.homeHeroCount
+
+                        onPlayRequested: playerLayer.start(window.homeHero)
+                        onPreviousRequested: window.stepHomeHero(-1)
+                        onNextRequested: window.stepHomeHero(1)
+                        onIndexRequested: function(index) { window.homeHeroIndex = index }
+
+                        Timer {
+                            interval: 8000
+                            repeat: true
+                            running: homeHeroPage.visible && window.homeHeroCount > 1
+                            onTriggered: window.stepHomeHero(1)
+                        }
+                    }
+
                     Flickable {
                         id: contentFlick
                         anchors.fill: parent
+                        visible: window.selectedNav !== 0
                         contentHeight: contentColumn.height + 60
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
@@ -193,9 +421,9 @@ ApplicationWindow {
                             RowLayout {
                                 width: parent.width
                                 Text {
-                                    text: window.selectedNav === 0 ? "晚上好，" + emby.userName
-                                         : window.selectedNav === 1 ? "电影"
-                                         : window.selectedNav === 2 ? "剧集" : "媒体库"
+                                    text: window.selectedNav === 1 ? "电影"
+                                         : window.selectedNav === 2 ? "剧集"
+                                         : window.selectedLibraryName || "媒体库"
                                     color: "#f3eddd"; font.pixelSize: 25; font.weight: Font.Bold
                                     Layout.fillWidth: true
                                 }
@@ -214,30 +442,6 @@ ApplicationWindow {
                                 BusyIndicator { running: emby.busy; visible: running; implicitWidth: 28; implicitHeight: 28 }
                             }
 
-                            Rectangle {
-                                visible: window.selectedNav === 0 && emby.items.length > 0
-                                width: parent.width; height: 290; radius: 20; clip: true
-                                color: "#211d14"
-                                property var hero: emby.items.length > 0 ? emby.items[0] : ({})
-                                Image { anchors.fill: parent; source: parent.hero.backdrop || parent.hero.image || ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
-                                Rectangle {
-                                    anchors.fill: parent
-                                    gradient: Gradient {
-                                        orientation: Gradient.Horizontal
-                                        GradientStop { position: 0; color: "#ed171611" }
-                                        GradientStop { position: 0.65; color: "#7a171611" }
-                                        GradientStop { position: 1; color: "#1116110d" }
-                                    }
-                                }
-                                Column {
-                                    anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 30
-                                    width: Math.min(570, parent.width * 0.6); spacing: 10
-                                    Text { text: parent.parent.hero.name || ""; color: "white"; font.pixelSize: 30; font.weight: Font.Bold }
-                                    Text { width: parent.width; text: parent.parent.hero.overview || ""; color: "#c6bda6"; font.pixelSize: 13; maximumLineCount: 2; elide: Text.ElideRight; wrapMode: Text.Wrap }
-                                    AccentButton { text: "▶  立即播放"; onClicked: playerLayer.start(parent.parent.hero) }
-                                }
-                            }
-
                             RowLayout {
                                 width: parent.width
                                 Text { text: searchField.text.length > 0 ? "搜索结果" : "最近添加"; color: "#eee7d6"; font.pixelSize: 18; font.weight: Font.DemiBold; Layout.fillWidth: true }
@@ -247,14 +451,14 @@ ApplicationWindow {
                             GridView {
                                 id: mediaGrid
                                 width: parent.width
-                                height: Math.ceil(emby.items.length / Math.max(1, Math.floor(width / 194))) * 316
+                                height: Math.ceil(emby.items.length / Math.max(1, Math.floor(width / cellWidth))) * cellHeight
                                 interactive: false
-                                cellWidth: 194
-                                cellHeight: 316
+                                cellWidth: 218
+                                cellHeight: 372
                                 model: emby.items
                                 delegate: MediaCard {
                                     required property var modelData
-                                    width: 174; height: 292
+                                    width: 200; height: 354
                                     media: modelData
                                     onClicked: { emby.loadItem(modelData.id); detailPopup.open() }
                                 }
@@ -276,8 +480,10 @@ ApplicationWindow {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         Overlay.modal: Rectangle { color: "#b0000000" }
         background: Rectangle { color: "#1c1912"; radius: 20; border.color: "#4a4028" }
-        contentItem: Item {
+        contentItem: Rectangle {
+            radius: 20
             clip: true
+            color: "transparent"
             Image { anchors.fill: parent; source: emby.currentItem.backdrop || ""; fillMode: Image.PreserveAspectCrop; opacity: 0.38 }
             Rectangle {
                 anchors.fill: parent
@@ -325,6 +531,13 @@ ApplicationWindow {
                         onClicked: detailPopup.close()
                     }
                 }
+            }
+            Rectangle {
+                anchors.fill: parent
+                radius: 20
+                color: "transparent"
+                border.color: "#4a4028"
+                border.width: 1
             }
         }
     }

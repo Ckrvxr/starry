@@ -37,6 +37,8 @@ qt_add_qml_module(starry
         qml/components/MediaCard.qml
         qml/components/PlayerView.qml
         qml/components/SidebarButton.qml
+        qml/components/ServerLibraryGroup.qml
+        qml/components/HomeHero.qml
 )
 
 target_link_libraries(starry PRIVATE
