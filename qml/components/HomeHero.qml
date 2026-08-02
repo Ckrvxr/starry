@@ -29,7 +29,7 @@ Item {
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
-        opacity: status === Image.Ready ? 0.88 : 0
+        opacity: status === Image.Ready ? 1 : 0
 
         Behavior on opacity { NumberAnimation { duration: 360; easing.type: Easing.OutCubic } }
     }
@@ -38,20 +38,20 @@ Item {
         anchors.fill: parent
         gradient: Gradient {
             orientation: Gradient.Horizontal
-            GradientStop { position: 0; color: "#fa070706" }
-            GradientStop { position: 0.3; color: "#c7070706" }
-            GradientStop { position: 0.62; color: "#30070706" }
-            GradientStop { position: 1; color: "#4d070706" }
+            GradientStop { position: 0; color: "#e6070706" }
+            GradientStop { position: 0.3; color: "#8f070706" }
+            GradientStop { position: 0.62; color: "#18070706" }
+            GradientStop { position: 1; color: "#12070706" }
         }
     }
 
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0; color: "#4d070706" }
+            GradientStop { position: 0; color: "#18070706" }
             GradientStop { position: 0.38; color: "#00070706" }
-            GradientStop { position: 0.7; color: "#8a070706" }
-            GradientStop { position: 1; color: "#fc070706" }
+            GradientStop { position: 0.7; color: "#42070706" }
+            GradientStop { position: 1; color: "#c4070706" }
         }
     }
 
@@ -62,7 +62,7 @@ Item {
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0; color: "#00070706" }
-            GradientStop { position: 1; color: "#bf070706" }
+            GradientStop { position: 1; color: "#4a070706" }
         }
     }
 

@@ -1,4 +1,7 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
+import QtQuick.Effects
 
 Item {
     id: root
@@ -23,13 +26,13 @@ Item {
     }
 
     implicitWidth: 200
-    implicitHeight: 354
+    implicitHeight: Math.round(width * 1.48) + 58
 
     Rectangle {
         id: posterFrame
         width: parent.width
         height: Math.round(width * 1.48)
-        radius: 12
+        radius: 14
         color: "#17140e"
         clip: true
         scale: mouse.containsMouse ? 1.018 : 1
@@ -42,11 +45,24 @@ Item {
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                maskEnabled: true
+                maskSource: ShaderEffectSource {
+                    sourceItem: Rectangle {
+                        width: poster.width
+                        height: poster.height
+                        radius: posterFrame.radius
+                        color: "white"
+                    }
+                }
+            }
         }
 
         Rectangle {
             anchors.fill: parent
             visible: poster.status !== Image.Ready
+            radius: posterFrame.radius
             gradient: Gradient {
                 GradientStop { position: 0; color: "#2e2718" }
                 GradientStop { position: 1; color: "#100e0a" }
@@ -77,6 +93,7 @@ Item {
 
         Rectangle {
             anchors.fill: parent
+            radius: posterFrame.radius
             color: "#52000000"
             opacity: mouse.containsMouse ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 140 } }

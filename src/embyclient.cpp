@@ -197,6 +197,9 @@ QVariantMap EmbyClient::mapItem(const QJsonObject &item) const
         {"type", type},
         {"year", item.value("ProductionYear").toVariant().toString()},
         {"genre", genre},
+        {"seasonNumber", item.value("ParentIndexNumber").toInt()},
+        {"indexNumber", item.value("IndexNumber").toInt()},
+        {"premiereDate", item.value("PremiereDate").toString().left(10)},
         {"overview", item.value("Overview").toString()},
         {"subtitle", subtitle},
         {"communityRating", item.value("CommunityRating").toDouble()},
@@ -233,7 +236,7 @@ void EmbyClient::loadItems(const QString &parentId, const QString &includeTypes)
     query.addQueryItem("SortBy", "DateCreated,SortName");
     query.addQueryItem("SortOrder", "Descending");
     query.addQueryItem("Limit", "100");
-    query.addQueryItem("Fields", "Overview,Genres,PrimaryImageAspectRatio,MediaSourceCount");
+    query.addQueryItem("Fields", "Overview,Genres,PremiereDate,PrimaryImageAspectRatio,MediaSourceCount");
     query.addQueryItem("EnableUserData", "true");
     if (!parentId.isEmpty())
         query.addQueryItem("ParentId", parentId);
@@ -259,7 +262,7 @@ void EmbyClient::search(const QString &term)
     query.addQueryItem("Recursive", "true");
     query.addQueryItem("Limit", "100");
     query.addQueryItem("IncludeItemTypes", "Movie,Series,Episode");
-    query.addQueryItem("Fields", "Overview,Genres,PrimaryImageAspectRatio");
+    query.addQueryItem("Fields", "Overview,Genres,PremiereDate,PrimaryImageAspectRatio");
     const QString path = QStringLiteral("/emby/Users/%1/Items?%2").arg(m_userId, query.toString(QUrl::FullyEncoded));
     request("GET", path, {}, [this](const QJsonObject &json) {
         QVariantList next;

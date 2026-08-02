@@ -17,6 +17,8 @@ ApplicationWindow {
     property int selectedNav: 0
     property string selectedLibraryName: ""
     property int homeHeroIndex: 0
+    property string selectedSeriesName: ""
+    property bool episodesLoading: false
     readonly property int homeHeroCount: Math.min(5, emby.items.length)
     readonly property var homeHero: homeHeroCount > 0
         ? emby.items[Math.min(homeHeroIndex, homeHeroCount - 1)] : ({})
@@ -309,8 +311,13 @@ ApplicationWindow {
                             onClicked: { window.selectedNav = 1; window.selectedLibraryName = ""; emby.loadItems("", "Movie") }
                         }
                         SidebarButton {
-                            text: "剧集"; glyph: "▦"; selected: window.selectedNav === 2
-                            onClicked: { window.selectedNav = 2; window.selectedLibraryName = ""; emby.loadItems("", "Series") }
+                            text: "剧集"; glyph: "▦"; selected: window.selectedNav === 2 || window.selectedNav === 3
+                            onClicked: {
+                                window.selectedNav = 2
+                                window.selectedLibraryName = ""
+                                window.selectedSeriesName = ""
+                                emby.loadItems("", "Series")
+                            }
                         }
                     }
 
@@ -403,10 +410,26 @@ ApplicationWindow {
                         }
                     }
 
+                    EpisodeListView {
+                        id: episodeListPage
+                        anchors.fill: parent
+                        visible: window.selectedNav === 3
+                        episodes: window.episodesLoading ? [] : emby.items
+                        seriesName: window.selectedSeriesName
+                        loading: window.episodesLoading
+
+                        onPlayRequested: function(media) { playerLayer.start(media) }
+                        onBackRequested: {
+                            window.selectedNav = 2
+                            window.selectedSeriesName = ""
+                            emby.loadItems("", "Series")
+                        }
+                    }
+
                     Flickable {
                         id: contentFlick
                         anchors.fill: parent
-                        visible: window.selectedNav !== 0
+                        visible: window.selectedNav !== 0 && window.selectedNav !== 3
                         contentHeight: contentColumn.height + 60
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
@@ -450,17 +473,30 @@ ApplicationWindow {
 
                             GridView {
                                 id: mediaGrid
+                                property int columnCount: Math.max(1, Math.floor(width / 218))
+                                property real cardWidth: Math.min(220, cellWidth - 28)
+                                property real cardHeight: Math.round(cardWidth * 1.48) + 58
+
                                 width: parent.width
-                                height: Math.ceil(emby.items.length / Math.max(1, Math.floor(width / cellWidth))) * cellHeight
+                                height: Math.ceil(emby.items.length / columnCount) * cellHeight
                                 interactive: false
-                                cellWidth: 218
-                                cellHeight: 372
+                                cellWidth: width / columnCount
+                                cellHeight: cardHeight + 30
                                 model: emby.items
-                                delegate: MediaCard {
+
+                                delegate: Item {
+                                    id: cardCell
                                     required property var modelData
-                                    width: 200; height: 354
-                                    media: modelData
-                                    onClicked: { emby.loadItem(modelData.id); detailPopup.open() }
+                                    width: mediaGrid.cellWidth
+                                    height: mediaGrid.cellHeight
+
+                                    MediaCard {
+                                        width: mediaGrid.cardWidth
+                                        height: mediaGrid.cardHeight
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        media: cardCell.modelData
+                                        onClicked: { emby.loadItem(cardCell.modelData.id); detailPopup.open() }
+                                    }
                                 }
                             }
                         }
@@ -518,10 +554,12 @@ ApplicationWindow {
                         visible: emby.currentItem.type === "Series"
                         text: "查看剧集"
                         onClicked: {
-                            const id = emby.currentItem.id
+                            const item = emby.currentItem
                             detailPopup.close()
-                            window.selectedNav = 2
-                            emby.loadItems(id, "Episode")
+                            window.selectedSeriesName = item.name || "剧集列表"
+                            window.episodesLoading = true
+                            window.selectedNav = 3
+                            emby.loadItems(item.id, "Episode")
                         }
                     }
                     Button {
@@ -623,5 +661,11 @@ ApplicationWindow {
     Connections {
         target: emby
         function onLoginSucceeded() { searchField.clear() }
+        function onItemsChanged() {
+            if (window.selectedNav === 3)
+                window.episodesLoading = false
+            if (window.homeHeroIndex >= window.homeHeroCount)
+                window.homeHeroIndex = 0
+        }
     }
 }
