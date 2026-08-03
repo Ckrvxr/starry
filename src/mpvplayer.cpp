@@ -153,6 +153,12 @@ MpvPlayer::MpvPlayer(QQuickItem *parent)
     mpv_observe_property(m_mpv, 4, "volume", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 5, "media-title", MPV_FORMAT_STRING);
     mpv_observe_property(m_mpv, 6, "track-list", MPV_FORMAT_NODE);
+    mpv_observe_property(m_mpv, 7, "chapter-list", MPV_FORMAT_NODE);
+    mpv_observe_property(m_mpv, 8, "cache-speed", MPV_FORMAT_INT64);
+    mpv_observe_property(m_mpv, 9, "video-bitrate", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(m_mpv, 10, "audio-bitrate", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(m_mpv, 11, "demuxer-cache-idle", MPV_FORMAT_FLAG);
+    mpv_observe_property(m_mpv, 12, "paused-for-cache", MPV_FORMAT_FLAG);
     mpv_set_wakeup_callback(m_mpv, &MpvPlayer::wakeup, this);
 }
 
@@ -206,6 +212,30 @@ void MpvPlayer::handleEvent(mpv_event *event)
         } else if (name == "track-list") {
             const auto *node = static_cast<mpv_node *>(property->data);
             updateTracks(nodeToVariant(*node).toList());
+        } else if (name == "chapter-list") {
+            const auto *node = static_cast<mpv_node *>(property->data);
+            updateChapters(nodeToVariant(*node).toList());
+        } else if (name == "cache-speed") {
+            const qint64 rawRate = *static_cast<qint64 *>(property->data);
+            m_instantLoadRate = rawRate > 0 ? static_cast<double>(rawRate) : 0.0;
+            if (m_instantLoadRate > 0) {
+                m_loadRateTotal += m_instantLoadRate;
+                ++m_loadRateSamples;
+                m_averageLoadRate = m_loadRateTotal / static_cast<double>(m_loadRateSamples);
+            }
+            emit loadRateChanged();
+        } else if (name == "video-bitrate") {
+            m_videoBitrate = qMax(0.0, *static_cast<double *>(property->data));
+            emit bitrateChanged();
+        } else if (name == "audio-bitrate") {
+            m_audioBitrate = qMax(0.0, *static_cast<double *>(property->data));
+            emit bitrateChanged();
+        } else if (name == "demuxer-cache-idle") {
+            m_cacheIdle = *static_cast<int *>(property->data) != 0;
+            emit cacheStateChanged();
+        } else if (name == "paused-for-cache") {
+            m_buffering = *static_cast<int *>(property->data) != 0;
+            emit cacheStateChanged();
         }
     } else if (event->event_id == MPV_EVENT_FILE_LOADED) {
         if (!m_playing) { m_playing = true; emit playingChanged(); }
@@ -257,6 +287,15 @@ void MpvPlayer::setSource(const QString &source)
 
 void MpvPlayer::play(const QString &url, double startSeconds)
 {
+    if (m_position != 0) {
+        m_position = 0;
+        emit positionChanged();
+    }
+    if (m_duration != 0) {
+        m_duration = 0;
+        emit durationChanged();
+    }
+    resetNetworkStats();
     m_source = url;
     emit sourceChanged();
     QStringList args{"loadfile", url, "replace"};
@@ -267,6 +306,21 @@ void MpvPlayer::play(const QString &url, double startSeconds)
         args << QStringLiteral("start=%1").arg(startSeconds, 0, 'f', 3);
     }
     command(args);
+}
+
+void MpvPlayer::resetNetworkStats()
+{
+    m_instantLoadRate = 0;
+    m_averageLoadRate = 0;
+    m_loadRateTotal = 0;
+    m_loadRateSamples = 0;
+    m_videoBitrate = 0;
+    m_audioBitrate = 0;
+    m_cacheIdle = false;
+    m_buffering = false;
+    emit loadRateChanged();
+    emit bitrateChanged();
+    emit cacheStateChanged();
 }
 
 void MpvPlayer::stop()
@@ -353,4 +407,24 @@ void MpvPlayer::updateTracks(const QVariantList &tracks)
     m_audioTracks = audioTracks;
     m_subtitleTracks = subtitleTracks;
     emit tracksChanged();
+}
+
+void MpvPlayer::updateChapters(const QVariantList &chapters)
+{
+    QVariantList next;
+    next.reserve(chapters.size());
+    for (const QVariant &value : chapters) {
+        const QVariantMap source = value.toMap();
+        const double time = source.value(QStringLiteral("time")).toDouble();
+        if (time < 0)
+            continue;
+        next.append(QVariantMap{
+            {QStringLiteral("time"), time},
+            {QStringLiteral("title"), source.value(QStringLiteral("title")).toString()}
+        });
+    }
+    if (m_chapters == next)
+        return;
+    m_chapters = next;
+    emit chaptersChanged();
 }

@@ -30,7 +30,10 @@ Item {
             "pencil": 57849,
             "captions": 58276,
             "sparkles": 58386,
-            "audio-lines": 58714
+            "audio-lines": 58714,
+            "volume-1": 57770,
+            "volume-2": 57771,
+            "volume-x": 57772
         };
         return codepoints[root.name] || 0;
     }
