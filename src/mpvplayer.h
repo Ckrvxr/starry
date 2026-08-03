@@ -42,6 +42,7 @@ public:
     Q_INVOKABLE void seekRelative(double seconds);
     Q_INVOKABLE void cycleAudio();
     Q_INVOKABLE void cycleSubtitle();
+    Q_INVOKABLE void applySettings(const QString &hwdec, const QString &alang, const QString &slang);
 
 signals:
     void sourceChanged();

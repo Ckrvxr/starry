@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick Qml Network OpenGL QuickControls2)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick Qml Network OpenGL QuickControls2 Sql)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
 
@@ -17,6 +17,10 @@ qt_add_executable(starry
     src/main.cpp
     src/embyclient.cpp
     src/embyclient.h
+    src/imagecache.cpp
+    src/imagecache.h
+    src/settingsstore.cpp
+    src/settingsstore.h
     src/mpvplayer.cpp
     src/mpvplayer.h
     src/macoswindow.cpp
@@ -36,10 +40,12 @@ qt_add_qml_module(starry
         qml/components/AccentButton.qml
         qml/components/MediaCard.qml
         qml/components/PlayerView.qml
-        qml/components/SidebarButton.qml
         qml/components/ServerLibraryGroup.qml
         qml/components/HomeHero.qml
         qml/components/EpisodeListView.qml
+        qml/components/MediaDetailView.qml
+        qml/components/SettingsView.qml
+        qml/components/ServerDialog.qml
 )
 
 target_link_libraries(starry PRIVATE
@@ -50,6 +56,7 @@ target_link_libraries(starry PRIVATE
     Qt6::Network
     Qt6::OpenGL
     Qt6::QuickControls2
+    Qt6::Sql
     PkgConfig::MPV
 )
 

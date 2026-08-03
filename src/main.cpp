@@ -5,9 +5,13 @@
 #include <QSGRendererInterface>
 #include <QQuickStyle>
 
+#include <clocale>
+
 #include "embyclient.h"
+#include "imagecache.h"
 #include "mpvplayer.h"
 #include "macoswindow.h"
+#include "settingsstore.h"
 
 int main(int argc, char *argv[])
 {
@@ -20,11 +24,18 @@ int main(int argc, char *argv[])
 
     QGuiApplication app(argc, argv);
 
+    // Qt 在 macOS 上会把 locale 设为系统区域设置，而 libmpv 要求 C locale
+    // （否则 mpv_create 直接返回 NULL）。必须在 QGuiApplication 构造后复位。
+    std::setlocale(LC_NUMERIC, "C");
+
     qmlRegisterType<MpvPlayer>("Starry", 1, 0, "MpvPlayer");
 
     EmbyClient emby;
+    SettingsStore settings;
     QQmlApplicationEngine engine;
+    engine.addImageProvider(QStringLiteral("cached"), new CachedImageProvider);
     engine.rootContext()->setContextProperty(QStringLiteral("emby"), &emby);
+    engine.rootContext()->setContextProperty(QStringLiteral("settings"), &settings);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
                      &app, [] { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
     engine.loadFromModule("Starry", "Main");

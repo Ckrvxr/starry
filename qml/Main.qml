@@ -7,6 +7,8 @@ ApplicationWindow {
     id: window
     width: 1360
     height: 820
+    x: Math.round((Screen.desktopAvailableWidth - width) / 2)
+    y: Math.round((Screen.desktopAvailableHeight - height) / 2)
     minimumWidth: 980
     minimumHeight: 640
     visible: true
@@ -15,10 +17,11 @@ ApplicationWindow {
     flags: Qt.Window | Qt.FramelessWindowHint
 
     property int selectedNav: 0
+    property bool settingsVisible: false
     property string selectedLibraryName: ""
     property int homeHeroIndex: 0
-    property string selectedSeriesName: ""
-    property bool episodesLoading: false
+    property bool detailVisible: false
+    property var detailMedia: ({})
     readonly property int homeHeroCount: Math.min(5, emby.items.length)
     readonly property var homeHero: homeHeroCount > 0
         ? emby.items[Math.min(homeHeroIndex, homeHeroCount - 1)] : ({})
@@ -37,6 +40,19 @@ ApplicationWindow {
         homeHeroIndex = (homeHeroIndex + step + homeHeroCount) % homeHeroCount
     }
 
+    function openDetail(item) {
+        detailMedia = item
+        detailVisible = true
+        emby.loadItem(item.id)
+        if (item.type === "Series")
+            emby.loadEpisodes(item.id)
+    }
+
+    function closeDetail() {
+        detailVisible = false
+        detailMedia = ({})
+    }
+
     Rectangle {
         id: windowSurface
         z: -100
@@ -50,85 +66,6 @@ ApplicationWindow {
         anchors.fill: parent
         // macOS 原生窗口已提供透明标题栏区域，内容从窗口顶端铺满，避免出现第二条空标题栏。
         anchors.topMargin: Qt.platform.os === "osx" ? 0 : titleBar.height
-        currentIndex: emby.connected ? 1 : 0
-
-        Item {
-            Rectangle {
-                anchors.fill: parent
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0; color: "#0b0b09" }
-                    GradientStop { position: 0.6; color: "#18150e" }
-                    GradientStop { position: 1; color: "#2a2110" }
-                }
-            }
-            Rectangle {
-                width: 440; height: 440; radius: 220
-                x: parent.width * 0.68; y: -170
-                color: "#c49b3d"; opacity: 0.14
-            }
-            Column {
-                anchors.centerIn: parent
-                width: 390
-                spacing: 18
-                Row {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: 12
-                    Text { text: "✦"; color: "#e0bd63"; font.pixelSize: 38 }
-                    Text { text: "Starry"; color: "white"; font.pixelSize: 38; font.weight: Font.Bold }
-                }
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: "连接你的 Emby 服务器"
-                    color: "#a39b88"; font.pixelSize: 14
-                }
-                Item { width: 1; height: 8 }
-                TextField {
-                    id: serverField
-                    width: parent.width; height: 50
-                    placeholderText: "服务器地址，例如 192.168.1.10:8096"
-                    color: "#f4efdf"; placeholderTextColor: "#77705f"
-                    leftPadding: 16
-                    background: Rectangle { color: "#1b1912"; radius: 12; border.color: serverField.activeFocus ? "#c9a85b" : "#393326" }
-                }
-                TextField {
-                    id: usernameField
-                    width: parent.width; height: 50
-                    placeholderText: "用户名"
-                    color: "#f4efdf"; placeholderTextColor: "#77705f"; leftPadding: 16
-                    background: Rectangle { color: "#1b1912"; radius: 12; border.color: usernameField.activeFocus ? "#c9a85b" : "#393326" }
-                }
-                TextField {
-                    id: passwordField
-                    width: parent.width; height: 50
-                    placeholderText: "密码"
-                    echoMode: TextInput.Password
-                    color: "#f4efdf"; placeholderTextColor: "#77705f"; leftPadding: 16
-                    onAccepted: loginButton.clicked()
-                    background: Rectangle { color: "#1b1912"; radius: 12; border.color: passwordField.activeFocus ? "#c9a85b" : "#393326" }
-                }
-                Text {
-                    width: parent.width
-                    visible: emby.error.length > 0
-                    text: emby.error
-                    color: "#ff8c9a"
-                    font.pixelSize: 12
-                    wrapMode: Text.Wrap
-                }
-                AccentButton {
-                    id: loginButton
-                    width: parent.width
-                    text: emby.busy ? "正在连接…" : "进入 Starry"
-                    enabled: !emby.busy && serverField.text.length > 0 && usernameField.text.length > 0
-                    onClicked: emby.login(serverField.text, usernameField.text, passwordField.text)
-                }
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: "凭据仅保存在这台设备上"
-                    color: "#807963"; font.pixelSize: 11
-                }
-            }
-        }
 
         Item {
             Rectangle {
@@ -256,97 +193,124 @@ ApplicationWindow {
                             }
                         }
 
-                        Column {
+                        Text {
                             anchors.left: parent.left
                             anchors.leftMargin: 49
                             anchors.verticalCenter: parent.verticalCenter
-                            spacing: 1
-
-                            Text {
-                                text: "STARRY"
-                                color: "#f7eed9"
-                                font.pixelSize: 17
-                                font.weight: Font.Bold
-                                font.letterSpacing: 2.2
-                            }
-                            Text {
-                                text: "YOUR MEDIA UNIVERSE"
-                                color: "#897856"
-                                font.pixelSize: 7
-                                font.letterSpacing: 1.25
-                            }
+                            text: "STARRY"
+                            color: "#f7eed9"
+                            font.pixelSize: 17
+                            font.weight: Font.Bold
+                            font.letterSpacing: 2.2
                         }
 
                         Rectangle {
-                            width: 6
-                            height: 6
-                            radius: 3
+                            id: settingsButton
+                            width: 34
+                            height: 34
+                            radius: 17
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            color: "#d1aa54"
+                            color: settingsMouse.containsMouse || window.settingsVisible ? "#272014" : "transparent"
+                            border.width: 0
+
+                            Behavior on color { ColorAnimation { duration: 120 } }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "⚙"
+                                color: settingsMouse.containsMouse || window.settingsVisible ? "#edc86d" : "#8f7c58"
+                                font.pixelSize: 15
+
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                            }
+
+                            MouseArea {
+                                id: settingsMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                Accessible.role: Accessible.Button
+                                Accessible.name: "设置"
+                                onClicked: {
+                                    window.settingsVisible = true
+                                    window.closeDetail()
+                                }
+                            }
                         }
                     }
 
-                    Column {
-                        id: primaryNavigation
+                    Rectangle {
+                        id: homeCard
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: brandHeader.bottom
                         anchors.leftMargin: 18
                         anchors.rightMargin: 18
-                        anchors.topMargin: 8
-                        spacing: 4
+                        anchors.topMargin: 10
+                        height: 66
+                        radius: 16
+                        color: homeMouse.containsMouse ? "#211b11"
+                              : window.selectedNav === 0 ? "#272014" : "#17140e"
+                        border.width: 0
 
-                        SidebarButton {
-                            text: "首页"; glyph: "⌂"; selected: window.selectedNav === 0
+                        Behavior on color { ColorAnimation { duration: 140 } }
+
+                        Rectangle {
+                            width: 32
+                            height: 32
+                            radius: 10
+                            anchors.left: parent.left
+                            anchors.leftMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: window.selectedNav === 0 ? "#3a2f19" : "#2b2314"
+                            border.width: 0
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "⌂"
+                                color: window.selectedNav === 0 ? "#edc86d" : "#f0cf83"
+                                font.pixelSize: 17
+                            }
+                        }
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 54
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "首页"
+                            color: window.selectedNav === 0 ? "#f6edd8" : "#f1e7d3"
+                            font.pixelSize: 13
+                            font.weight: Font.DemiBold
+
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                        }
+
+                        Rectangle {
+                            width: 7
+                            height: 7
+                            radius: 4
+                            anchors.right: parent.right
+                            anchors.rightMargin: 14
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: window.selectedNav === 0 ? "#e5bd69" : "#4a3d28"
+                        }
+
+                        MouseArea {
+                            id: homeMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            Accessible.role: Accessible.Button
+                            Accessible.name: "首页"
                             onClicked: {
+                                window.closeDetail()
+                                window.settingsVisible = false
                                 window.selectedNav = 0
                                 window.selectedLibraryName = ""
                                 window.homeHeroIndex = 0
                                 emby.loadItems()
                             }
-                        }
-                        SidebarButton {
-                            text: "电影"; glyph: "◆"; selected: window.selectedNav === 1
-                            onClicked: { window.selectedNav = 1; window.selectedLibraryName = ""; emby.loadItems("", "Movie") }
-                        }
-                        SidebarButton {
-                            text: "剧集"; glyph: "▦"; selected: window.selectedNav === 2 || window.selectedNav === 3
-                            onClicked: {
-                                window.selectedNav = 2
-                                window.selectedLibraryName = ""
-                                window.selectedSeriesName = ""
-                                emby.loadItems("", "Series")
-                            }
-                        }
-                    }
-
-                    Row {
-                        id: serversSectionHeader
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: primaryNavigation.bottom
-                        anchors.leftMargin: 20
-                        anchors.rightMargin: 20
-                        anchors.topMargin: 18
-                        height: 30
-
-                        Text {
-                            text: "媒体服务器"
-                            color: "#8f7c58"
-                            font.pixelSize: 10
-                            font.weight: Font.DemiBold
-                            font.letterSpacing: 1.2
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-
-                        Text {
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "1 ONLINE"
-                            color: "#776846"
-                            font.pixelSize: 8
-                            font.letterSpacing: 0.8
                         }
                     }
 
@@ -354,11 +318,11 @@ ApplicationWindow {
                         id: serversFlick
                         anchors.left: parent.left
                         anchors.right: parent.right
-                        anchors.top: serversSectionHeader.bottom
+                        anchors.top: homeCard.bottom
                         anchors.bottom: parent.bottom
                         anchors.leftMargin: 18
                         anchors.rightMargin: 18
-                        anchors.topMargin: 4
+                        anchors.topMargin: 10
                         anchors.bottomMargin: 18
                         contentHeight: serversColumn.implicitHeight
                         clip: true
@@ -367,19 +331,52 @@ ApplicationWindow {
                         Column {
                             id: serversColumn
                             width: serversFlick.width
+                            spacing: 8
 
-                            ServerLibraryGroup {
-                                width: parent.width
-                                serverName: window.serverNameFromUrl(emby.serverUrl)
-                                serverAddress: "EMBY  ·  已连接"
-                                libraries: emby.libraries
-                                selectedLibrary: window.selectedNav >= 10 ? window.selectedNav - 10 : -1
+                            Repeater {
+                                model: emby.servers
 
-                                onLibraryClicked: function(index, libraryId, libraryName) {
-                                    window.selectedNav = 10 + index
-                                    window.selectedLibraryName = libraryName
-                                    emby.loadItems(libraryId)
+                                delegate: ServerLibraryGroup {
+                                    width: parent.width
+                                    serverName: modelData.displayName && modelData.displayName.length > 0
+                                                ? modelData.displayName
+                                                : window.serverNameFromUrl(modelData.url)
+                                    serverAddress: modelData.userName + " · EMBY"
+                                    logoUrl: modelData.url
+                                    libraries: emby.serverUrl === modelData.url ? emby.libraries : []
+                                    active: emby.serverUrl === modelData.url
+                                    expanded: emby.serverUrl === modelData.url
+                                    selectedLibrary: emby.serverUrl === modelData.url
+                                                     && window.selectedNav >= 10
+                                                     ? window.selectedNav - 10 : -1
+
+                                    onLibraryClicked: function(index, libraryId, libraryName) {
+                                        window.closeDetail()
+                                        window.settingsVisible = false
+                                        window.selectedNav = 10 + index
+                                        window.selectedLibraryName = libraryName
+                                        emby.loadItems(libraryId)
+                                    }
+
+                                    onActivateRequested: {
+                                        window.closeDetail()
+                                        window.settingsVisible = false
+                                        window.selectedNav = 0
+                                        window.selectedLibraryName = ""
+                                        emby.switchServer(modelData.url)
+                                    }
                                 }
+                            }
+
+                            Text {
+                                visible: emby.servers.length === 0
+                                width: parent.width
+                                height: 40
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                text: "尚未连接服务器"
+                                color: "#766848"
+                                font.pixelSize: 11
                             }
                         }
                     }
@@ -392,12 +389,14 @@ ApplicationWindow {
                     HomeHero {
                         id: homeHeroPage
                         anchors.fill: parent
-                        visible: window.selectedNav === 0
+                        visible: !window.settingsVisible && window.selectedNav === 0
                         media: window.homeHero
                         currentIndex: window.homeHeroIndex
                         itemCount: window.homeHeroCount
+                        resume: emby.resumeItems
 
                         onPlayRequested: playerLayer.start(window.homeHero)
+                        onResumePlayRequested: function(item) { playerLayer.start(item) }
                         onPreviousRequested: window.stepHomeHero(-1)
                         onNextRequested: window.stepHomeHero(1)
                         onIndexRequested: function(index) { window.homeHeroIndex = index }
@@ -410,26 +409,10 @@ ApplicationWindow {
                         }
                     }
 
-                    EpisodeListView {
-                        id: episodeListPage
-                        anchors.fill: parent
-                        visible: window.selectedNav === 3
-                        episodes: window.episodesLoading ? [] : emby.items
-                        seriesName: window.selectedSeriesName
-                        loading: window.episodesLoading
-
-                        onPlayRequested: function(media) { playerLayer.start(media) }
-                        onBackRequested: {
-                            window.selectedNav = 2
-                            window.selectedSeriesName = ""
-                            emby.loadItems("", "Series")
-                        }
-                    }
-
                     Flickable {
                         id: contentFlick
                         anchors.fill: parent
-                        visible: window.selectedNav !== 0 && window.selectedNav !== 3
+                        visible: !window.settingsVisible && window.selectedNav !== 0
                         contentHeight: contentColumn.height + 60
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
@@ -444,9 +427,7 @@ ApplicationWindow {
                             RowLayout {
                                 width: parent.width
                                 Text {
-                                    text: window.selectedNav === 1 ? "电影"
-                                         : window.selectedNav === 2 ? "剧集"
-                                         : window.selectedLibraryName || "媒体库"
+                                    text: window.selectedLibraryName || "媒体库"
                                     color: "#f3eddd"; font.pixelSize: 25; font.weight: Font.Bold
                                     Layout.fillWidth: true
                                 }
@@ -495,87 +476,43 @@ ApplicationWindow {
                                         height: mediaGrid.cardHeight
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         media: cardCell.modelData
-                                        onClicked: { emby.loadItem(cardCell.modelData.id); detailPopup.open() }
+                                        onClicked: window.openDetail(cardCell.modelData)
                                     }
                                 }
                             }
                         }
                     }
-                }
-            }
-        }
-    }
 
-    Popup {
-        id: detailPopup
-        anchors.centerIn: Overlay.overlay
-        width: Math.min(880, window.width - 80)
-        height: Math.min(610, window.height - 80)
-        modal: true
-        padding: 0
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        Overlay.modal: Rectangle { color: "#b0000000" }
-        background: Rectangle { color: "#1c1912"; radius: 20; border.color: "#4a4028" }
-        contentItem: Rectangle {
-            radius: 20
-            clip: true
-            color: "transparent"
-            Image { anchors.fill: parent; source: emby.currentItem.backdrop || ""; fillMode: Image.PreserveAspectCrop; opacity: 0.38 }
-            Rectangle {
-                anchors.fill: parent
-                gradient: Gradient {
-                    GradientStop { position: 0; color: "#3a2a2414" }
-                    GradientStop { position: 0.58; color: "#e812100b" }
-                    GradientStop { position: 1; color: "#ff0b0a08" }
-                }
-            }
-            Button {
-                anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 16
-                text: "×"; flat: true; font.pixelSize: 24
-                contentItem: Text { text: parent.text; color: "white"; font: parent.font; horizontalAlignment: Text.AlignHCenter }
-                onClicked: detailPopup.close()
-            }
-            Column {
-                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 34
-                spacing: 14
-                Text { text: emby.currentItem.name || "加载中…"; color: "white"; font.pixelSize: 32; font.weight: Font.Bold }
-                Row { spacing: 14
-                    Text { text: emby.currentItem.subtitle || emby.currentItem.type || ""; color: "#b8ad92"; font.pixelSize: 13 }
-                    Text { visible: (emby.currentItem.communityRating || 0) > 0; text: "★ " + Number(emby.currentItem.communityRating || 0).toFixed(1); color: "#f0ca6d"; font.pixelSize: 13 }
-                }
-                Text { width: Math.min(700, parent.width); text: emby.currentItem.overview || "暂无简介"; color: "#b7b5c0"; font.pixelSize: 14; lineHeight: 1.35; wrapMode: Text.Wrap; maximumLineCount: 5; elide: Text.ElideRight }
-                Row { spacing: 12
-                    AccentButton {
-                        visible: emby.currentItem.type !== "Series"
-                        text: (emby.currentItem.position || 0) > 0 ? "▶  继续播放" : "▶  立即播放"
-                        onClicked: { const item = emby.currentItem; detailPopup.close(); playerLayer.start(item) }
+                    MediaDetailView {
+                        id: mediaDetailPage
+                        anchors.fill: parent
+                        z: 20
+                        visible: window.detailVisible
+                        media: emby.currentItem.id === window.detailMedia.id
+                               ? emby.currentItem : window.detailMedia
+                        loading: emby.busy && emby.currentItem.id !== window.detailMedia.id
+                        episodes: emby.episodes
+                        loadingEpisodes: window.detailMedia.type === "Series"
+                                         && emby.busy && emby.episodes.length === 0
+
+                        onBackRequested: window.closeDetail()
+                        onPlayRequested: function(media) { playerLayer.start(media) }
                     }
-                    AccentButton {
-                        visible: emby.currentItem.type === "Series"
-                        text: "查看剧集"
-                        onClicked: {
-                            const item = emby.currentItem
-                            detailPopup.close()
-                            window.selectedSeriesName = item.name || "剧集列表"
-                            window.episodesLoading = true
-                            window.selectedNav = 3
-                            emby.loadItems(item.id, "Episode")
+
+                    SettingsView {
+                        id: settingsPage
+                        anchors.fill: parent
+                        visible: window.settingsVisible
+
+                        onSwitchRequested: function(url) {
+                            window.settingsVisible = false
+                            window.closeDetail()
+                            window.selectedNav = 0
+                            window.selectedLibraryName = ""
+                            emby.switchServer(url)
                         }
                     }
-                    Button {
-                        text: "关闭"; implicitHeight: 44; implicitWidth: 90
-                        contentItem: Text { text: parent.text; color: "#dedde6"; font: parent.font; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                        background: Rectangle { radius: 12; color: parent.hovered ? "#3c3949" : "#302e3b" }
-                        onClicked: detailPopup.close()
-                    }
                 }
-            }
-            Rectangle {
-                anchors.fill: parent
-                radius: 20
-                color: "transparent"
-                border.color: "#4a4028"
-                border.width: 1
             }
         }
     }
@@ -662,8 +599,6 @@ ApplicationWindow {
         target: emby
         function onLoginSucceeded() { searchField.clear() }
         function onItemsChanged() {
-            if (window.selectedNav === 3)
-                window.episodesLoading = false
             if (window.homeHeroIndex >= window.homeHeroCount)
                 window.homeHeroIndex = 0
         }

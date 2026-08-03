@@ -295,7 +295,9 @@ Item {
                 Image {
                     id: episodeStill
                     anchors.fill: parent
-                    source: episodeRow.modelData.image || ""
+                    source: episodeRow.modelData.image
+                        ? "image://cached/" + encodeURIComponent(episodeRow.modelData.image)
+                        : ""
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                     cache: true

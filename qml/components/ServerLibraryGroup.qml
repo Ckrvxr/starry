@@ -8,11 +8,14 @@ Item {
 
     property string serverName: "Emby Server"
     property string serverAddress: "已连接"
+    property string logoUrl: ""
     property var libraries: []
     property int selectedLibrary: -1
+    property bool active: false
     property bool expanded: true
 
     signal libraryClicked(int index, string libraryId, string libraryName)
+    signal activateRequested()
 
     implicitWidth: 204
     implicitHeight: serverHeader.height + libraryViewport.height + 8
@@ -22,8 +25,10 @@ Item {
         width: parent.width
         height: 66
         radius: 16
-        color: serverMouse.containsMouse ? "#211b11" : "#17140e"
-        border.width: 0
+        color: serverMouse.containsMouse ? "#211b11"
+              : root.active ? "#1b1710" : "#17140e"
+        border.width: root.active ? 1 : 0
+        border.color: "#3a3322"
 
         Behavior on color { ColorAnimation { duration: 140 } }
 
@@ -36,12 +41,30 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             color: "#2b2314"
             border.width: 0
+            clip: true
+
+            Image {
+                id: serverLogo
+                anchors.fill: parent
+                anchors.margins: 6
+                asynchronous: true
+                fillMode: Image.PreserveAspectFit
+                source: root.logoUrl.length
+                        ? "image://cached/" + encodeURIComponent(root.logoUrl + "/emby/Web/Logo.png")
+                        : ""
+
+                onStatusChanged: {
+                    if (status === Image.Error)
+                        source = root.logoUrl + "/web/Logo.png"
+                }
+            }
 
             Text {
                 anchors.centerIn: parent
                 text: "✦"
                 color: "#f0cf83"
                 font.pixelSize: 15
+                visible: serverLogo.status !== Image.Ready
             }
 
             Rectangle {
@@ -92,7 +115,8 @@ Item {
             anchors.rightMargin: 9
             anchors.verticalCenter: parent.verticalCenter
             text: "›"
-            color: serverMouse.containsMouse ? "#e6ca82" : "#95815a"
+            color: serverMouse.containsMouse ? "#e6ca82"
+                  : root.active ? "#c9a85b" : "#95815a"
             font.pixelSize: 21
             horizontalAlignment: Text.AlignHCenter
             rotation: root.expanded ? 90 : 0
@@ -107,7 +131,12 @@ Item {
             cursorShape: Qt.PointingHandCursor
             Accessible.role: Accessible.Button
             Accessible.name: root.serverName + (root.expanded ? "，已展开" : "，已折叠")
-            onClicked: root.expanded = !root.expanded
+            onClicked: {
+                if (!root.active)
+                    root.activateRequested()
+                else
+                    root.expanded = !root.expanded
+            }
         }
     }
 

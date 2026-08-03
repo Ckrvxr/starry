@@ -41,7 +41,9 @@ Item {
         Image {
             id: poster
             anchors.fill: parent
-            source: root.media.image || root.media.backdrop || ""
+            source: (root.media.image || root.media.backdrop)
+                    ? "image://cached/" + encodeURIComponent(root.media.image || root.media.backdrop)
+                    : ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
@@ -100,18 +102,24 @@ Item {
         }
 
         Rectangle {
-            width: 46
-            height: 46
-            radius: 23
+            width: 92
+            height: 36
+            radius: 18
             anchors.centerIn: parent
-            color: "#d9232019"
+            color: "#e61b1812"
             border.width: 1
             border.color: "#a68b55"
             opacity: mouse.containsMouse ? 1 : 0
             scale: mouse.containsMouse ? 1 : 0.8
             Behavior on opacity { NumberAnimation { duration: 140 } }
             Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutBack } }
-            Text { anchors.centerIn: parent; text: "▶"; color: "#f5f0e5"; font.pixelSize: 15 }
+            Text {
+                anchors.centerIn: parent
+                text: "查看详情  ›"
+                color: "#f5f0e5"
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
+            }
         }
     }
 

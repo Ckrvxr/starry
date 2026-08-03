@@ -89,6 +89,7 @@ MpvPlayer::MpvPlayer(QQuickItem *parent)
     setMirrorVertically(false);
     m_mpv = mpv_create();
     if (!m_mpv) {
+        qWarning() << "[mpv] mpv_create 返回 null";
         QMetaObject::invokeMethod(this, [this] { emit mpvError(QStringLiteral("无法初始化 libmpv")); }, Qt::QueuedConnection);
         return;
     }
@@ -98,7 +99,9 @@ MpvPlayer::MpvPlayer(QQuickItem *parent)
     mpv_set_option_string(m_mpv, "osd-level", "0");
     mpv_set_option_string(m_mpv, "alang", "chi,zho,zh,eng,en");
     mpv_set_option_string(m_mpv, "slang", "chi,zho,zh,eng,en");
-    if (mpv_initialize(m_mpv) < 0) {
+    const int initResult = mpv_initialize(m_mpv);
+    if (initResult < 0) {
+        qWarning() << "[mpv] mpv_initialize 失败:" << mpv_error_string(initResult);
         mpv_terminate_destroy(m_mpv);
         m_mpv = nullptr;
         QMetaObject::invokeMethod(this, [this] { emit mpvError(QStringLiteral("libmpv 初始化失败")); }, Qt::QueuedConnection);
@@ -187,6 +190,16 @@ void MpvPlayer::command(const QStringList &args)
     const int result = mpv_command_async(m_mpv, 0, values.data());
     if (result < 0)
         emit mpvError(QString::fromUtf8(mpv_error_string(result)));
+}
+
+void MpvPlayer::applySettings(const QString &hwdec, const QString &alang, const QString &slang)
+{
+    if (!m_mpv)
+        return;
+    // hwdec/alang/slang 均为运行时可切换属性，对后续加载的媒体生效
+    mpv_set_property_string(m_mpv, "hwdec", hwdec.toUtf8().constData());
+    mpv_set_property_string(m_mpv, "alang", alang.toUtf8().constData());
+    mpv_set_property_string(m_mpv, "slang", slang.toUtf8().constData());
 }
 
 void MpvPlayer::setSource(const QString &source)
