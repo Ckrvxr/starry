@@ -18,6 +18,43 @@ void *getProcAddress(void *, const char *name)
     QOpenGLContext *context = QOpenGLContext::currentContext();
     return context ? reinterpret_cast<void *>(context->getProcAddress(QByteArray(name))) : nullptr;
 }
+
+QVariant nodeToVariant(const mpv_node &node)
+{
+    switch (node.format) {
+    case MPV_FORMAT_STRING:
+    case MPV_FORMAT_OSD_STRING:
+        return node.u.string ? QString::fromUtf8(node.u.string) : QString();
+    case MPV_FORMAT_FLAG:
+        return node.u.flag != 0;
+    case MPV_FORMAT_INT64:
+        return QVariant::fromValue(node.u.int64);
+    case MPV_FORMAT_DOUBLE:
+        return node.u.double_;
+    case MPV_FORMAT_NODE_ARRAY: {
+        QVariantList values;
+        if (!node.u.list)
+            return values;
+        values.reserve(node.u.list->num);
+        for (int index = 0; index < node.u.list->num; ++index)
+            values.append(nodeToVariant(node.u.list->values[index]));
+        return values;
+    }
+    case MPV_FORMAT_NODE_MAP: {
+        QVariantMap values;
+        if (!node.u.list)
+            return values;
+        for (int index = 0; index < node.u.list->num; ++index) {
+            const QString key = node.u.list->keys[index]
+                ? QString::fromUtf8(node.u.list->keys[index]) : QString();
+            values.insert(key, nodeToVariant(node.u.list->values[index]));
+        }
+        return values;
+    }
+    default:
+        return {};
+    }
+}
 }
 
 class MpvRenderer final : public QQuickFramebufferObject::Renderer
@@ -61,7 +98,9 @@ public:
             return;
         QOpenGLFramebufferObject *fbo = framebufferObject();
         mpv_opengl_fbo target{static_cast<int>(fbo->handle()), fbo->width(), fbo->height(), 0};
-        int flipY = 1;
+        // Qt Quick already presents the framebuffer texture with the expected
+        // orientation. Asking libmpv to flip it again turns the video upside down.
+        int flipY = 0;
         mpv_render_param params[] = {
             {MPV_RENDER_PARAM_OPENGL_FBO, &target},
             {MPV_RENDER_PARAM_FLIP_Y, &flipY},
@@ -113,6 +152,7 @@ MpvPlayer::MpvPlayer(QQuickItem *parent)
     mpv_observe_property(m_mpv, 3, "duration", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 4, "volume", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 5, "media-title", MPV_FORMAT_STRING);
+    mpv_observe_property(m_mpv, 6, "track-list", MPV_FORMAT_NODE);
     mpv_set_wakeup_callback(m_mpv, &MpvPlayer::wakeup, this);
 }
 
@@ -163,6 +203,9 @@ void MpvPlayer::handleEvent(mpv_event *event)
             m_volume = *static_cast<double *>(property->data); emit volumeChanged();
         } else if (name == "media-title") {
             m_mediaTitle = QString::fromUtf8(*static_cast<char **>(property->data)); emit mediaTitleChanged();
+        } else if (name == "track-list") {
+            const auto *node = static_cast<mpv_node *>(property->data);
+            updateTracks(nodeToVariant(*node).toList());
         }
     } else if (event->event_id == MPV_EVENT_FILE_LOADED) {
         if (!m_playing) { m_playing = true; emit playingChanged(); }
@@ -217,8 +260,12 @@ void MpvPlayer::play(const QString &url, double startSeconds)
     m_source = url;
     emit sourceChanged();
     QStringList args{"loadfile", url, "replace"};
-    if (startSeconds > 0.5)
+    if (startSeconds > 0.5) {
+        // mpv 0.41 的第 4 个 loadfile 参数是播放列表索引，文件选项位于其后。
+        // 省略 -1 会让 start=... 被当作整数索引解析并报“非法参数”。
+        args << QStringLiteral("-1");
         args << QStringLiteral("start=%1").arg(startSeconds, 0, 'f', 3);
+    }
     command(args);
 }
 
@@ -256,5 +303,54 @@ void MpvPlayer::setVolume(double volume)
     mpv_set_property_async(m_mpv, 0, "volume", MPV_FORMAT_DOUBLE, &volume);
 }
 
-void MpvPlayer::cycleAudio() { command({"cycle", "audio"}); }
-void MpvPlayer::cycleSubtitle() { command({"cycle", "sub"}); }
+void MpvPlayer::selectAudioTrack(int id)
+{
+    if (!m_mpv)
+        return;
+    const QByteArray value = id > 0 ? QByteArray::number(id) : QByteArrayLiteral("no");
+    const int result = mpv_set_property_string(m_mpv, "aid", value.constData());
+    if (result < 0)
+        emit mpvError(QString::fromUtf8(mpv_error_string(result)));
+}
+
+void MpvPlayer::selectSubtitleTrack(int id)
+{
+    if (!m_mpv)
+        return;
+    const QByteArray value = id > 0 ? QByteArray::number(id) : QByteArrayLiteral("no");
+    const int result = mpv_set_property_string(m_mpv, "sid", value.constData());
+    if (result < 0)
+        emit mpvError(QString::fromUtf8(mpv_error_string(result)));
+}
+
+void MpvPlayer::updateTracks(const QVariantList &tracks)
+{
+    QVariantList audioTracks;
+    QVariantList subtitleTracks;
+    for (const QVariant &value : tracks) {
+        const QVariantMap source = value.toMap();
+        const QString type = source.value(QStringLiteral("type")).toString();
+        if (type != QStringLiteral("audio") && type != QStringLiteral("sub"))
+            continue;
+
+        const QVariantMap track{
+            {QStringLiteral("id"), source.value(QStringLiteral("id")).toInt()},
+            {QStringLiteral("title"), source.value(QStringLiteral("title")).toString()},
+            {QStringLiteral("language"), source.value(QStringLiteral("lang")).toString()},
+            {QStringLiteral("codec"), source.value(QStringLiteral("codec")).toString()},
+            {QStringLiteral("selected"), source.value(QStringLiteral("selected")).toBool()},
+            {QStringLiteral("default"), source.value(QStringLiteral("default")).toBool()},
+            {QStringLiteral("forced"), source.value(QStringLiteral("forced")).toBool()}
+        };
+        if (type == QStringLiteral("audio"))
+            audioTracks.append(track);
+        else
+            subtitleTracks.append(track);
+    }
+
+    if (m_audioTracks == audioTracks && m_subtitleTracks == subtitleTracks)
+        return;
+    m_audioTracks = audioTracks;
+    m_subtitleTracks = subtitleTracks;
+    emit tracksChanged();
+}

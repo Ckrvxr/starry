@@ -22,10 +22,25 @@ ApplicationWindow {
     property int homeHeroIndex: 0
     property bool detailVisible: false
     property var detailMedia: ({})
+    property bool pageTransitionActive: false
+    readonly property string activePageKey: settingsVisible ? "settings"
+        : detailVisible ? "detail:" + String(detailMedia.id || "")
+        : selectedNav === 0 ? "home" : "library:" + String(selectedNav)
     readonly property int homeHeroCount: Math.min(5, emby.items.length)
     readonly property var homeHero: homeHeroCount > 0
         ? emby.items[Math.min(homeHeroIndex, homeHeroCount - 1)] : ({})
     property bool isFullscreen: visibility === Window.FullScreen
+
+    onActivePageKeyChanged: {
+        pageTransitionActive = true
+        pageTransitionTimer.restart()
+    }
+
+    Timer {
+        id: pageTransitionTimer
+        interval: 380
+        onTriggered: window.pageTransitionActive = false
+    }
 
     function serverNameFromUrl(value) {
         const host = String(value || "")
@@ -185,11 +200,12 @@ ApplicationWindow {
                                 color: "#100e09"
                             }
 
-                            Text {
+                            LucideIcon {
                                 anchors.centerIn: parent
-                                text: "✦"
+                                width: 20
+                                height: 20
+                                name: "sparkles"
                                 color: "#f0ca72"
-                                font.pixelSize: 20
                             }
                         }
 
@@ -216,11 +232,12 @@ ApplicationWindow {
 
                             Behavior on color { ColorAnimation { duration: 120 } }
 
-                            Text {
+                            LucideIcon {
                                 anchors.centerIn: parent
-                                text: "⚙"
+                                width: 16
+                                height: 16
+                                name: "settings"
                                 color: settingsMouse.containsMouse || window.settingsVisible ? "#edc86d" : "#8f7c58"
-                                font.pixelSize: 15
 
                                 Behavior on color { ColorAnimation { duration: 120 } }
                             }
@@ -266,11 +283,12 @@ ApplicationWindow {
                             color: window.selectedNav === 0 ? "#3a2f19" : "#2b2314"
                             border.width: 0
 
-                            Text {
+                            LucideIcon {
                                 anchors.centerIn: parent
-                                text: "⌂"
+                                width: 17
+                                height: 17
+                                name: "house"
                                 color: window.selectedNav === 0 ? "#edc86d" : "#f0cf83"
-                                font.pixelSize: 17
                             }
                         }
 
@@ -511,6 +529,12 @@ ApplicationWindow {
                             window.selectedLibraryName = ""
                             emby.switchServer(url)
                         }
+                    }
+
+                    PageLoadingOverlay {
+                        anchors.fill: parent
+                        z: 80
+                        active: window.pageTransitionActive || emby.busy
                     }
                 }
             }

@@ -11,19 +11,19 @@ Item {
     // 添加服务器对话框
     ServerDialog {
         id: addDialog
-        onAccepted: function(displayName, url, user, password) {
-            emby.login(url, user, password, displayName)
+        onAccepted: function (displayName, url, user, password) {
+            emby.login(url, user, password, displayName);
         }
     }
 
     // 编辑服务器对话框（地址只读，改凭据则重新认证，否则仅改显示名称）
     ServerDialog {
         id: editDialog
-        onAccepted: function(displayName, url, user, password) {
+        onAccepted: function (displayName, url, user, password) {
             if (url !== editDialog.serverUrl || user !== editDialog.userName || password.length > 0)
-                emby.login(url, user, password, displayName)
+                emby.login(url, user, password, displayName);
             else
-                emby.renameServer(editDialog.serverUrl, displayName)
+                emby.renameServer(editDialog.serverUrl, displayName);
         }
     }
 
@@ -31,18 +31,18 @@ Item {
         target: emby
         function onErrorChanged() {
             if (emby.error.length > 0 && addDialog.opened)
-                addDialog.showError(emby.error)
+                addDialog.showError(emby.error);
             else if (emby.error.length > 0 && editDialog.opened)
-                editDialog.showError(emby.error)
+                editDialog.showError(emby.error);
         }
         function onLoginSucceeded() {
-            addDialog.close()
-            editDialog.close()
+            addDialog.close();
+            editDialog.close();
         }
     }
 
     function hostOf(value) {
-        return String(value || "").replace(/^https?:\/\//, "").replace(/\/.*$/, "")
+        return String(value || "").replace(/^https?:\/\//, "").replace(/\/.*$/, "");
     }
 
     // 栏目卡片通用样式
@@ -83,11 +83,12 @@ Item {
         contentHeight: column.height + 60
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: ScrollBar { }
+        ScrollBar.vertical: ScrollBar {}
 
         Column {
             id: column
-            x: 34; y: 24
+            x: 34
+            y: 24
             width: parent.width - 68
             spacing: 26
 
@@ -149,11 +150,12 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                     color: "#2b2314"
 
-                                    Text {
+                                    LucideIcon {
                                         anchors.centerIn: parent
-                                        text: "✦"
+                                        width: 13
+                                        height: 13
+                                        name: "server"
                                         color: emby.serverUrl === modelData.url ? "#edc86d" : "#8f7c58"
-                                        font.pixelSize: 12
                                     }
                                 }
 
@@ -161,10 +163,9 @@ Item {
                                     width: parent.width - 24 - 10 - 260
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: {
-                                        const display = modelData.displayName
-                                        const name = display && display.length > 0
-                                                  ? display : root.hostOf(modelData.url)
-                                        return name + " · " + modelData.userName + " · " + modelData.url
+                                        const display = modelData.displayName;
+                                        const name = display && display.length > 0 ? display : root.hostOf(modelData.url);
+                                        return name + " · " + modelData.userName + " · " + modelData.url;
                                     }
                                     color: "#f1e7d3"
                                     font.pixelSize: 12
@@ -200,14 +201,15 @@ Item {
                                     width: 62
                                     height: 30
                                     text: "编辑"
+                                    iconName: "pencil"
                                     accentColor: "#4a4232"
                                     onClicked: {
-                                        editDialog.dialogTitle = "编辑服务器"
-                                        editDialog.confirmText = "保存"
-                                        editDialog.serverUrl = modelData.url
-                                        editDialog.displayName = modelData.displayName
-                                        editDialog.userName = modelData.userName
-                                        editDialog.open()
+                                        editDialog.dialogTitle = "编辑服务器";
+                                        editDialog.confirmText = "保存";
+                                        editDialog.serverUrl = modelData.url;
+                                        editDialog.displayName = modelData.displayName;
+                                        editDialog.userName = modelData.userName;
+                                        editDialog.open();
                                     }
                                 }
 
@@ -215,6 +217,7 @@ Item {
                                     width: 62
                                     height: 30
                                     text: "删除"
+                                    iconName: "trash-2"
                                     accentColor: "#8a4b3f"
                                     onClicked: emby.removeServer(modelData.url)
                                 }
@@ -235,14 +238,15 @@ Item {
                     AccentButton {
                         width: 160
                         height: 38
-                        text: "＋ 添加服务器"
+                        text: "添加服务器"
+                        iconName: "plus"
                         onClicked: {
-                            addDialog.dialogTitle = "添加服务器"
-                            addDialog.confirmText = "添加并连接"
-                            addDialog.serverUrl = ""
-                            addDialog.displayName = ""
-                            addDialog.userName = ""
-                            addDialog.open()
+                            addDialog.dialogTitle = "添加服务器";
+                            addDialog.confirmText = "添加并连接";
+                            addDialog.serverUrl = "";
+                            addDialog.displayName = "";
+                            addDialog.userName = "";
+                            addDialog.open();
                         }
                     }
 
@@ -294,8 +298,8 @@ Item {
                             implicitHeight: 36
                             model: ["auto-safe", "auto", "no"]
                             currentIndex: {
-                                const idx = model.indexOf(settings.hwdec)
-                                return idx >= 0 ? idx : 0
+                                const idx = model.indexOf(settings.hwdec);
+                                return idx >= 0 ? idx : 0;
                             }
 
                             onActivated: settings.setHwdec(currentText)
@@ -315,10 +319,11 @@ Item {
                                 border.color: hwdecBox.activeFocus ? "#c9a85b" : "#393326"
                             }
 
-                            indicator: Text {
-                                text: "▾"
+                            indicator: LucideIcon {
+                                width: 14
+                                height: 14
+                                name: "chevron-down"
                                 color: "#8d7d5d"
-                                font.pixelSize: 11
                                 anchors.right: parent.right
                                 anchors.rightMargin: 12
                                 anchors.verticalCenter: parent.verticalCenter

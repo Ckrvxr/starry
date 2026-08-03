@@ -13,38 +13,39 @@ Item {
     property int selectedSeason: seasons.length > 0 ? seasons[0] : 1
 
     readonly property var seasons: {
-        const values = []
+        const values = [];
         for (let i = 0; i < episodes.length; ++i) {
-            const season = Math.max(1, Number(episodes[i].seasonNumber || 1))
+            const season = Math.max(1, Number(episodes[i].seasonNumber || 1));
             if (values.indexOf(season) < 0)
-                values.push(season)
+                values.push(season);
         }
-        return values.sort(function(a, b) { return a - b })
+        return values.sort(function (a, b) {
+            return a - b;
+        });
     }
 
     readonly property var visibleEpisodes: {
-        const values = []
+        const values = [];
         for (let i = 0; i < episodes.length; ++i) {
-            const episode = episodes[i]
+            const episode = episodes[i];
             if (Math.max(1, Number(episode.seasonNumber || 1)) === selectedSeason)
-                values.push(episode)
+                values.push(episode);
         }
-        return values.sort(function(a, b) {
-            return Number(a.indexNumber || 0) - Number(b.indexNumber || 0)
-        })
+        return values.sort(function (a, b) {
+            return Number(a.indexNumber || 0) - Number(b.indexNumber || 0);
+        });
     }
 
     signal playRequested(var media)
-    signal backRequested()
+    signal backRequested
 
     function formatDuration(seconds) {
-        const minutes = Math.max(0, Math.round(Number(seconds || 0) / 60))
+        const minutes = Math.max(0, Math.round(Number(seconds || 0) / 60));
         if (minutes < 1)
-            return ""
-        const hours = Math.floor(minutes / 60)
-        const remaining = minutes % 60
-        return hours > 0 ? hours + "小时" + (remaining > 0 ? " " + remaining + "分钟" : "")
-                         : minutes + "分钟"
+            return "";
+        const hours = Math.floor(minutes / 60);
+        const remaining = minutes % 60;
+        return hours > 0 ? hours + "小时" + (remaining > 0 ? " " + remaining + "分钟" : "") : minutes + "分钟";
     }
 
     Rectangle {
@@ -85,8 +86,7 @@ Item {
             }
 
             Text {
-                text: (root.seriesName.length > 0 ? root.seriesName + "  ·  " : "")
-                      + root.seasons.length + " 季"
+                text: (root.seriesName.length > 0 ? root.seriesName + "  ·  " : "") + root.seasons.length + " 季"
                 color: "#8e8677"
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
@@ -99,15 +99,28 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 98
                 height: 34
-                text: "‹  返回剧集"
+                text: "返回剧集"
                 hoverEnabled: true
 
-                contentItem: Text {
-                    text: backButton.text
-                    color: backButton.hovered ? "#edcb77" : "#aaa18f"
-                    font.pixelSize: 11
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+                contentItem: Item {
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 5
+
+                        LucideIcon {
+                            width: 14
+                            height: 14
+                            anchors.verticalCenter: parent.verticalCenter
+                            name: "chevron-left"
+                            color: backButton.hovered ? "#edcb77" : "#aaa18f"
+                        }
+
+                        Text {
+                            text: backButton.text
+                            color: backButton.hovered ? "#edcb77" : "#aaa18f"
+                            font.pixelSize: 11
+                        }
+                    }
                 }
                 background: Rectangle {
                     radius: 17
@@ -158,8 +171,7 @@ Item {
                             }
                             background: Rectangle {
                                 radius: 17
-                                color: root.selectedSeason === Number(seasonButton.modelData) ? "#d9a747"
-                                      : seasonButton.hovered ? "#26231d" : "#1a1916"
+                                color: root.selectedSeason === Number(seasonButton.modelData) ? "#d9a747" : seasonButton.hovered ? "#26231d" : "#1a1916"
                             }
                             onClicked: root.selectedSeason = Number(modelData)
                         }
@@ -250,7 +262,7 @@ Item {
         spacing: 0
         boundsBehavior: Flickable.StopAtBounds
         model: root.loading ? [] : root.visibleEpisodes
-        ScrollBar.vertical: ScrollBar { }
+        ScrollBar.vertical: ScrollBar {}
 
         delegate: Item {
             id: episodeRow
@@ -263,7 +275,11 @@ Item {
                 anchors.fill: parent
                 color: rowMouse.containsMouse ? "#0e0d0a" : "transparent"
 
-                Behavior on color { ColorAnimation { duration: 120 } }
+                Behavior on color {
+                    ColorAnimation {
+                        duration: 120
+                    }
+                }
             }
 
             Rectangle {
@@ -295,9 +311,7 @@ Item {
                 Image {
                     id: episodeStill
                     anchors.fill: parent
-                    source: episodeRow.modelData.image
-                        ? "image://cached/" + encodeURIComponent(episodeRow.modelData.image)
-                        : ""
+                    source: episodeRow.modelData.image ? "image://cached/" + encodeURIComponent(episodeRow.modelData.image) : ""
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                     cache: true
@@ -320,13 +334,18 @@ Item {
                     radius: 9
                     color: "#4f000000"
                     opacity: rowMouse.containsMouse ? 1 : 0
-                    Behavior on opacity { NumberAnimation { duration: 120 } }
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: 120
+                        }
+                    }
 
-                    Text {
+                    LucideIcon {
                         anchors.centerIn: parent
-                        text: "▶"
+                        width: 19
+                        height: 19
+                        name: "play"
                         color: "white"
-                        font.pixelSize: 19
                     }
                 }
             }

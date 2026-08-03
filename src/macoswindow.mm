@@ -1,10 +1,16 @@
 #include "macoswindow.h"
 
 #include <QGuiApplication>
+#include <QPointer>
 #include <QQuickWindow>
 
 #ifdef Q_OS_MACOS
 #import <Cocoa/Cocoa.h>
+#import <objc/runtime.h>
+
+namespace {
+char fullscreenExitObserverKey;
+}
 
 namespace MacWindowStyler {
 
@@ -34,6 +40,26 @@ void apply(QQuickWindow *window)
     nativeWindow.opaque = YES;
     nativeWindow.backgroundColor = [NSColor colorWithCalibratedWhite:0.043 alpha:1.0];
     nativeWindow.hasShadow = YES;
+
+    // macOS 会在原生全屏切换过程中改写 NSWindow 的 styleMask。退出全屏后
+    // 等 Qt 完成窗口状态同步，再重新应用普通窗口的标题栏、边框和阴影样式。
+    if (!objc_getAssociatedObject(nativeWindow, &fullscreenExitObserverKey)) {
+        const QPointer<QQuickWindow> guardedWindow(window);
+        id observer = [[NSNotificationCenter defaultCenter]
+            addObserverForName:NSWindowDidExitFullScreenNotification
+                        object:nativeWindow
+                         queue:NSOperationQueue.mainQueue
+                    usingBlock:^(NSNotification *) {
+                        if (!guardedWindow)
+                            return;
+                        QMetaObject::invokeMethod(guardedWindow.data(), [guardedWindow] {
+                            if (guardedWindow)
+                                MacWindowStyler::apply(guardedWindow.data());
+                        }, Qt::QueuedConnection);
+                    }];
+        objc_setAssociatedObject(nativeWindow, &fullscreenExitObserverKey, observer,
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
 
     // 使用系统红绿灯，不再由 QML 模拟。
     const NSWindowButton buttons[] = { NSWindowCloseButton,

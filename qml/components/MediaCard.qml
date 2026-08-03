@@ -9,20 +9,22 @@ Item {
     signal clicked
 
     function formatDuration(seconds) {
-        const totalMinutes = Math.max(0, Math.round(Number(seconds || 0) / 60))
+        const totalMinutes = Math.max(0, Math.round(Number(seconds || 0) / 60));
         if (totalMinutes < 1)
-            return ""
-        const hours = Math.floor(totalMinutes / 60)
-        const minutes = totalMinutes % 60
+            return "";
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
         if (hours > 0)
-            return hours + "小时" + (minutes > 0 ? " " + minutes + "分" : "")
-        return minutes + "分钟"
+            return hours + "小时" + (minutes > 0 ? " " + minutes + "分" : "");
+        return minutes + "分钟";
     }
 
     function typeLabel(type) {
-        if (type === "Movie") return "电影"
-        if (type === "Series" || type === "Episode") return "剧集"
-        return type || "影视"
+        if (type === "Movie")
+            return "电影";
+        if (type === "Series" || type === "Episode")
+            return "剧集";
+        return type || "影视";
     }
 
     implicitWidth: 200
@@ -36,14 +38,17 @@ Item {
         color: "#17140e"
         clip: true
         scale: mouse.containsMouse ? 1.018 : 1
-        Behavior on scale { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
+        Behavior on scale {
+            NumberAnimation {
+                duration: 170
+                easing.type: Easing.OutCubic
+            }
+        }
 
         Image {
             id: poster
             anchors.fill: parent
-            source: (root.media.image || root.media.backdrop)
-                    ? "image://cached/" + encodeURIComponent(root.media.image || root.media.backdrop)
-                    : ""
+            source: (root.media.image || root.media.backdrop) ? "image://cached/" + encodeURIComponent(root.media.image || root.media.backdrop) : ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
@@ -66,14 +71,21 @@ Item {
             visible: poster.status !== Image.Ready
             radius: posterFrame.radius
             gradient: Gradient {
-                GradientStop { position: 0; color: "#2e2718" }
-                GradientStop { position: 1; color: "#100e0a" }
+                GradientStop {
+                    position: 0
+                    color: "#2e2718"
+                }
+                GradientStop {
+                    position: 1
+                    color: "#100e0a"
+                }
             }
-            Text {
+            LucideIcon {
                 anchors.centerIn: parent
-                text: "✦"
+                width: 34
+                height: 34
+                name: "sparkles"
                 color: "#88764a"
-                font.pixelSize: 34
             }
         }
 
@@ -98,7 +110,11 @@ Item {
             radius: posterFrame.radius
             color: "#52000000"
             opacity: mouse.containsMouse ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: 140 } }
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 140
+                }
+            }
         }
 
         Rectangle {
@@ -111,14 +127,35 @@ Item {
             border.color: "#a68b55"
             opacity: mouse.containsMouse ? 1 : 0
             scale: mouse.containsMouse ? 1 : 0.8
-            Behavior on opacity { NumberAnimation { duration: 140 } }
-            Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutBack } }
-            Text {
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 140
+                }
+            }
+            Behavior on scale {
+                NumberAnimation {
+                    duration: 140
+                    easing.type: Easing.OutBack
+                }
+            }
+            Row {
                 anchors.centerIn: parent
-                text: "查看详情  ›"
-                color: "#f5f0e5"
-                font.pixelSize: 12
-                font.weight: Font.DemiBold
+                spacing: 4
+
+                Text {
+                    text: "查看详情"
+                    color: "#f5f0e5"
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                }
+
+                LucideIcon {
+                    width: 14
+                    height: 14
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: "chevron-right"
+                    color: "#f5f0e5"
+                }
             }
         }
     }
@@ -133,7 +170,11 @@ Item {
         font.weight: Font.DemiBold
         elide: Text.ElideRight
 
-        Behavior on color { ColorAnimation { duration: 120 } }
+        Behavior on color {
+            ColorAnimation {
+                duration: 120
+            }
+        }
     }
 
     Row {
@@ -158,7 +199,9 @@ Item {
             leftPadding: 7
 
             Rectangle {
-                width: 2; height: 2; radius: 1
+                width: 2
+                height: 2
+                radius: 1
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 color: "#716957"
@@ -174,7 +217,9 @@ Item {
             leftPadding: 7
 
             Rectangle {
-                width: 2; height: 2; radius: 1
+                width: 2
+                height: 2
+                radius: 1
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 color: "#716957"
@@ -189,7 +234,9 @@ Item {
             leftPadding: 7
 
             Rectangle {
-                width: 2; height: 2; radius: 1
+                width: 2
+                height: 2
+                radius: 1
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 color: "#716957"

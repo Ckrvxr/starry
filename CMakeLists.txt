@@ -42,10 +42,16 @@ qt_add_qml_module(starry
         qml/components/PlayerView.qml
         qml/components/ServerLibraryGroup.qml
         qml/components/HomeHero.qml
+        qml/components/LucideIcon.qml
+        qml/components/PageLoadingOverlay.qml
         qml/components/EpisodeListView.qml
         qml/components/MediaDetailView.qml
         qml/components/SettingsView.qml
         qml/components/ServerDialog.qml
+        qml/components/TrackSelectionPopup.qml
+    RESOURCES
+        qml/fonts/lucide.ttf
+        qml/fonts/LUCIDE_LICENSE
 )
 
 target_link_libraries(starry PRIVATE

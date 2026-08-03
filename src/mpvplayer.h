@@ -3,6 +3,7 @@
 #include <QMutex>
 #include <QQuickFramebufferObject>
 #include <QStringList>
+#include <QVariantList>
 
 struct mpv_handle;
 struct mpv_event;
@@ -17,6 +18,8 @@ class MpvPlayer : public QQuickFramebufferObject
     Q_PROPERTY(double duration READ duration NOTIFY durationChanged)
     Q_PROPERTY(double volume READ volume WRITE setVolume NOTIFY volumeChanged)
     Q_PROPERTY(QString mediaTitle READ mediaTitle NOTIFY mediaTitleChanged)
+    Q_PROPERTY(QVariantList audioTracks READ audioTracks NOTIFY tracksChanged)
+    Q_PROPERTY(QVariantList subtitleTracks READ subtitleTracks NOTIFY tracksChanged)
 
 public:
     explicit MpvPlayer(QQuickItem *parent = nullptr);
@@ -30,6 +33,8 @@ public:
     double duration() const { return m_duration; }
     double volume() const { return m_volume; }
     QString mediaTitle() const { return m_mediaTitle; }
+    QVariantList audioTracks() const { return m_audioTracks; }
+    QVariantList subtitleTracks() const { return m_subtitleTracks; }
 
     void setSource(const QString &source);
     void setPaused(bool paused);
@@ -40,8 +45,8 @@ public:
     Q_INVOKABLE void stop();
     Q_INVOKABLE void togglePause();
     Q_INVOKABLE void seekRelative(double seconds);
-    Q_INVOKABLE void cycleAudio();
-    Q_INVOKABLE void cycleSubtitle();
+    Q_INVOKABLE void selectAudioTrack(int id);
+    Q_INVOKABLE void selectSubtitleTrack(int id);
     Q_INVOKABLE void applySettings(const QString &hwdec, const QString &alang, const QString &slang);
 
 signals:
@@ -52,6 +57,7 @@ signals:
     void durationChanged();
     void volumeChanged();
     void mediaTitleChanged();
+    void tracksChanged();
     void playbackEnded();
     void mpvError(const QString &message);
 
@@ -63,6 +69,7 @@ private:
     static void wakeup(void *context);
     void command(const QStringList &args);
     void handleEvent(mpv_event *event);
+    void updateTracks(const QVariantList &tracks);
 
     mpv_handle *m_mpv = nullptr;
     QString m_source;
@@ -72,4 +79,6 @@ private:
     double m_duration = 0;
     double m_volume = 100;
     QString m_mediaTitle;
+    QVariantList m_audioTracks;
+    QVariantList m_subtitleTracks;
 };

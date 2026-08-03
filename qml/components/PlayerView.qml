@@ -16,57 +16,56 @@ Item {
     signal fullscreenRequested
 
     function revealControls() {
-        controlsVisible = true
-        controlsTimer.restart()
+        controlsVisible = true;
+        controlsTimer.restart();
     }
 
     function start(item) {
-        media = item
-        visible = true
-        controlsVisible = true
-        forceActiveFocus()
-        player.applySettings(settings.hwdec, settings.alang, settings.slang)
-        player.play(emby.playbackUrl(item.id), item.position || 0)
-        emby.reportPlaybackStart(item.id)
-        controlsTimer.restart()
+        media = item;
+        visible = true;
+        controlsVisible = true;
+        forceActiveFocus();
+        player.applySettings(settings.hwdec, settings.alang, settings.slang);
+        player.play(emby.playbackUrl(item.id), item.position || 0);
+        emby.reportPlaybackStart(item.id);
+        controlsTimer.restart();
     }
 
     function stopPlayback() {
         if (!visible)
-            return
+            return;
         if (media.id)
-            emby.reportPlaybackStopped(media.id, player.position)
-        player.stop()
-        visible = false
-        controlsVisible = true
-        closeRequested()
+            emby.reportPlaybackStopped(media.id, player.position);
+        player.stop();
+        visible = false;
+        controlsVisible = true;
+        closeRequested();
     }
 
     function formatTime(seconds) {
         if (!isFinite(seconds) || seconds < 0)
-            return "00:00"
-        const total = Math.floor(seconds)
-        const h = Math.floor(total / 3600)
-        const m = Math.floor((total % 3600) / 60)
-        const s = total % 60
-        return (h > 0 ? String(h).padStart(2, "0") + ":" : "")
-             + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0")
+            return "00:00";
+        const total = Math.floor(seconds);
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        return (h > 0 ? String(h).padStart(2, "0") + ":" : "") + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
     }
 
     visible: false
     focus: visible
 
     Keys.onSpacePressed: {
-        player.togglePause()
-        root.revealControls()
+        player.togglePause();
+        root.revealControls();
     }
     Keys.onLeftPressed: {
-        player.seekRelative(-10)
-        root.revealControls()
+        player.seekRelative(-10);
+        root.revealControls();
     }
     Keys.onRightPressed: {
-        player.seekRelative(10)
-        root.revealControls()
+        player.seekRelative(10);
+        root.revealControls();
     }
     Keys.onEscapePressed: root.fullscreen ? root.fullscreenRequested() : root.stopPlayback()
 
@@ -81,25 +80,31 @@ Item {
 
         onPausedChanged: {
             if (paused) {
-                root.controlsVisible = true
-                controlsTimer.stop()
+                root.controlsVisible = true;
+                controlsTimer.stop();
             } else {
-                root.revealControls()
+                root.revealControls();
             }
         }
         onPlaybackEnded: root.stopPlayback()
-        onMpvError: function(message) {
-            errorText.text = message
-            errorToast.open()
+        onMpvError: function (message) {
+            errorText.text = message;
+            errorToast.open();
         }
     }
 
     // 设置页修改 mpv 选项时，对已初始化的播放器即时生效
     Connections {
         target: settings
-        function onHwdecChanged() { player.applySettings(settings.hwdec, settings.alang, settings.slang) }
-        function onAlangChanged() { player.applySettings(settings.hwdec, settings.alang, settings.slang) }
-        function onSlangChanged() { player.applySettings(settings.hwdec, settings.alang, settings.slang) }
+        function onHwdecChanged() {
+            player.applySettings(settings.hwdec, settings.alang, settings.slang);
+        }
+        function onAlangChanged() {
+            player.applySettings(settings.hwdec, settings.alang, settings.slang);
+        }
+        function onSlangChanged() {
+            player.applySettings(settings.hwdec, settings.alang, settings.slang);
+        }
     }
 
     MouseArea {
@@ -110,8 +115,8 @@ Item {
 
         onPositionChanged: root.revealControls()
         onClicked: {
-            player.togglePause()
-            root.revealControls()
+            player.togglePause();
+            root.revealControls();
         }
         onDoubleClicked: root.fullscreenRequested()
     }
@@ -122,7 +127,8 @@ Item {
         anchors.top: parent.top
         anchors.leftMargin: 22
         anchors.topMargin: 22
-        width: Math.min(430, root.width - 44)
+        readonly property real naturalWidth: Math.max(mediaTitleMetrics.advanceWidth, mediaSubtitleText.visible ? mediaSubtitleMetrics.advanceWidth : 0) + 92
+        width: Math.min(root.width - 44, Math.max(210, Math.min(620, naturalWidth)))
         height: 54
         radius: 27
         color: "#d9141412"
@@ -132,11 +138,40 @@ Item {
         scale: root.controlsVisible ? 1 : 0.97
         enabled: root.controlsVisible
 
-        Behavior on opacity { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 190; easing.type: Easing.OutCubic } }
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 170
+                easing.type: Easing.OutCubic
+            }
+        }
+        Behavior on scale {
+            NumberAnimation {
+                duration: 190
+                easing.type: Easing.OutCubic
+            }
+        }
+        Behavior on width {
+            NumberAnimation {
+                duration: 180
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        TextMetrics {
+            id: mediaTitleMetrics
+            font: mediaTitleText.font
+            text: mediaTitleText.text
+        }
+
+        TextMetrics {
+            id: mediaSubtitleMetrics
+            font: mediaSubtitleText.font
+            text: mediaSubtitleText.text
+        }
 
         HoverHandler {
-            onHoveredChanged: if (hovered) root.revealControls()
+            onHoveredChanged: if (hovered)
+                root.revealControls()
         }
 
         MouseArea {
@@ -152,20 +187,26 @@ Item {
             width: 42
             height: 42
             hoverEnabled: true
-            text: "←"
+            text: "退出播放"
 
-            contentItem: Text {
-                text: closeButton.text
-                color: closeButton.hovered ? "#f1cf78" : "#f2eee5"
-                font.pixelSize: 18
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
+            contentItem: Item {
+                LucideIcon {
+                    anchors.centerIn: parent
+                    width: 18
+                    height: 18
+                    name: "arrow-left"
+                    color: closeButton.hovered ? "#f1cf78" : "#f2eee5"
+                }
             }
 
             background: Rectangle {
                 radius: 21
                 color: closeButton.hovered ? "#20ffffff" : "transparent"
-                Behavior on color { ColorAnimation { duration: 120 } }
+                Behavior on color {
+                    ColorAnimation {
+                        duration: 120
+                    }
+                }
             }
 
             ToolTip.visible: hovered
@@ -192,6 +233,7 @@ Item {
             spacing: 2
 
             Text {
+                id: mediaTitleText
                 width: parent.width
                 text: root.media.name || player.mediaTitle || "正在播放"
                 color: "#f5f2ea"
@@ -201,6 +243,7 @@ Item {
             }
 
             Text {
+                id: mediaSubtitleText
                 width: parent.width
                 visible: text.length > 0
                 text: root.media.seriesName || root.media.subtitle || ""
@@ -216,8 +259,8 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 24
-        width: Math.min(780, root.width - 48)
-        height: 116
+        width: Math.min(900, root.width - 48)
+        height: 72
         radius: 27
         color: "#e6141412"
         border.width: 1
@@ -226,11 +269,22 @@ Item {
         scale: root.controlsVisible ? 1 : 0.97
         enabled: root.controlsVisible
 
-        Behavior on opacity { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 190; easing.type: Easing.OutCubic } }
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 170
+                easing.type: Easing.OutCubic
+            }
+        }
+        Behavior on scale {
+            NumberAnimation {
+                duration: 190
+                easing.type: Easing.OutCubic
+            }
+        }
 
         HoverHandler {
-            onHoveredChanged: if (hovered) root.revealControls()
+            onHoveredChanged: if (hovered)
+                root.revealControls()
         }
 
         MouseArea {
@@ -239,37 +293,73 @@ Item {
         }
 
         RowLayout {
-            id: timelineRow
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.leftMargin: 18
-            anchors.rightMargin: 18
-            anchors.topMargin: 13
-            height: 28
-            spacing: 10
+            anchors.fill: parent
+            anchors.leftMargin: 14
+            anchors.rightMargin: 14
+            anchors.topMargin: 10
+            anchors.bottomMargin: 10
+            spacing: 8
+
+            Button {
+                id: playPauseButton
+                Layout.preferredWidth: 48
+                Layout.preferredHeight: 48
+                Layout.alignment: Qt.AlignVCenter
+                hoverEnabled: true
+                text: player.paused ? "播放" : "暂停"
+
+                contentItem: Item {
+                    LucideIcon {
+                        anchors.centerIn: parent
+                        width: 19
+                        height: 19
+                        name: player.paused ? "play" : "pause"
+                        color: "#17130b"
+                    }
+                }
+                background: Rectangle {
+                    radius: 24
+                    color: playPauseButton.down ? "#bd9847" : playPauseButton.hovered ? "#f0d183" : "#d9b45d"
+                    border.width: 1
+                    border.color: playPauseButton.hovered ? "#f8e1a9" : "#e7c979"
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: 120
+                        }
+                    }
+                }
+                ToolTip.visible: hovered
+                ToolTip.text: playPauseButton.text
+                ToolTip.delay: 450
+                onClicked: {
+                    player.togglePause();
+                    root.revealControls();
+                }
+            }
 
             Text {
-                Layout.preferredWidth: 44
+                Layout.preferredWidth: 42
                 text: root.formatTime(player.position)
                 color: "#bcb6aa"
                 font.pixelSize: 10
                 font.weight: Font.DemiBold
                 horizontalAlignment: Text.AlignRight
+                verticalAlignment: Text.AlignVCenter
             }
 
             Slider {
                 id: timeline
                 Layout.fillWidth: true
-                Layout.preferredHeight: 28
+                Layout.minimumWidth: 150
+                Layout.preferredHeight: 32
                 from: 0
                 to: Math.max(1, player.duration)
                 value: pressed ? value : player.position
                 hoverEnabled: true
 
                 onMoved: {
-                    player.position = value
-                    root.revealControls()
+                    player.position = value;
+                    root.revealControls();
                 }
 
                 background: Rectangle {
@@ -298,210 +388,159 @@ Item {
                     border.width: 1
                     border.color: "#f7e2ae"
 
-                    Behavior on width { NumberAnimation { duration: 100 } }
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: 100
+                        }
+                    }
                 }
             }
 
             Text {
-                Layout.preferredWidth: 44
+                Layout.preferredWidth: 42
                 text: root.formatTime(player.duration)
                 color: "#8f8a80"
                 font.pixelSize: 10
                 font.weight: Font.DemiBold
+                verticalAlignment: Text.AlignVCenter
+            }
+
+            Button {
+                id: audioButton
+                Layout.preferredWidth: 40
+                Layout.preferredHeight: 40
+                Layout.alignment: Qt.AlignVCenter
+                hoverEnabled: true
+                text: "音轨"
+
+                contentItem: Item {
+                    LucideIcon {
+                        anchors.centerIn: parent
+                        width: 18
+                        height: 18
+                        name: "audio-lines"
+                        color: audioButton.hovered ? "#f0ce79" : "#aaa499"
+                    }
+                }
+                background: Rectangle {
+                    radius: 20
+                    color: audioButton.hovered ? "#16ffffff" : "transparent"
+                }
+                ToolTip.visible: hovered && !audioTrackPopup.visible
+                ToolTip.text: "选择音轨"
+                ToolTip.delay: 450
+                onClicked: {
+                    subtitleTrackPopup.close();
+                    root.revealControls();
+                    audioTrackPopup.open();
+                }
+            }
+
+            Button {
+                id: subtitleButton
+                Layout.preferredWidth: 40
+                Layout.preferredHeight: 40
+                Layout.alignment: Qt.AlignVCenter
+                hoverEnabled: true
+                text: "字幕"
+
+                contentItem: Item {
+                    LucideIcon {
+                        anchors.centerIn: parent
+                        width: 19
+                        height: 19
+                        name: "captions"
+                        color: subtitleButton.hovered ? "#f0ce79" : "#aaa499"
+                    }
+                }
+                background: Rectangle {
+                    radius: 20
+                    color: subtitleButton.hovered ? "#16ffffff" : "transparent"
+                }
+                ToolTip.visible: hovered && !subtitleTrackPopup.visible
+                ToolTip.text: "选择字幕"
+                ToolTip.delay: 450
+                onClicked: {
+                    audioTrackPopup.close();
+                    root.revealControls();
+                    subtitleTrackPopup.open();
+                }
+            }
+
+            Button {
+                id: fullscreenButton
+                Layout.preferredWidth: 40
+                Layout.preferredHeight: 40
+                Layout.alignment: Qt.AlignVCenter
+                hoverEnabled: true
+                text: root.fullscreen ? "退出全屏" : "进入全屏"
+
+                contentItem: Item {
+                    LucideIcon {
+                        anchors.centerIn: parent
+                        width: 18
+                        height: 18
+                        name: root.fullscreen ? "minimize" : "maximize"
+                        color: fullscreenButton.hovered ? "#f0ce79" : "#d2ccc1"
+                    }
+                }
+                background: Rectangle {
+                    radius: 20
+                    color: fullscreenButton.hovered ? "#16ffffff" : "transparent"
+                }
+                ToolTip.visible: hovered
+                ToolTip.text: fullscreenButton.text
+                ToolTip.delay: 450
+                onClicked: {
+                    root.fullscreenRequested();
+                    root.revealControls();
+                }
             }
         }
+    }
 
-        Item {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: timelineRow.bottom
-            anchors.bottom: parent.bottom
-            anchors.leftMargin: 16
-            anchors.rightMargin: 16
+    TrackSelectionPopup {
+        id: audioTrackPopup
+        parent: root
+        x: Math.max(12, Math.min(root.width - width - 12, audioButton.mapToItem(root, audioButton.width / 2, 0).x - width / 2))
+        y: Math.max(12, controlDock.y - height - 10)
+        heading: "选择音轨"
+        tracks: player.audioTracks
+        emptyText: "没有可用音轨"
 
-            Row {
-                id: transportControls
-                anchors.centerIn: parent
-                spacing: 8
+        onOpened: controlsTimer.stop()
+        onClosed: if (!player.paused)
+            controlsTimer.restart()
+        onTrackSelected: function (trackId) {
+            player.selectAudioTrack(trackId);
+            close();
+        }
+    }
 
-                Button {
-                    id: rewindButton
-                    width: 42
-                    height: 42
-                    hoverEnabled: true
-                    text: "↶10"
+    TrackSelectionPopup {
+        id: subtitleTrackPopup
+        parent: root
+        x: Math.max(12, Math.min(root.width - width - 12, subtitleButton.mapToItem(root, subtitleButton.width / 2, 0).x - width / 2))
+        y: Math.max(12, controlDock.y - height - 10)
+        heading: "选择字幕"
+        tracks: player.subtitleTracks
+        allowOff: true
+        emptyText: "没有可用字幕"
 
-                    contentItem: Text {
-                        text: rewindButton.text
-                        color: rewindButton.hovered ? "#f0ce79" : "#ddd8ce"
-                        font.pixelSize: 11
-                        font.weight: Font.DemiBold
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        radius: 21
-                        color: rewindButton.hovered ? "#18ffffff" : "transparent"
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-                    ToolTip.visible: hovered
-                    ToolTip.text: "后退 10 秒"
-                    ToolTip.delay: 450
-                    onClicked: {
-                        player.seekRelative(-10)
-                        root.revealControls()
-                    }
-                }
-
-                Button {
-                    id: playPauseButton
-                    width: 48
-                    height: 48
-                    anchors.verticalCenter: parent.verticalCenter
-                    hoverEnabled: true
-                    text: player.paused ? "▶" : "Ⅱ"
-
-                    contentItem: Text {
-                        text: playPauseButton.text
-                        color: "#17130b"
-                        font.pixelSize: player.paused ? 16 : 17
-                        font.weight: Font.Bold
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        radius: 24
-                        color: playPauseButton.down ? "#bd9847"
-                             : playPauseButton.hovered ? "#f0d183" : "#d9b45d"
-                        border.width: 1
-                        border.color: playPauseButton.hovered ? "#f8e1a9" : "#e7c979"
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-                    onClicked: {
-                        player.togglePause()
-                        root.revealControls()
-                    }
-                }
-
-                Button {
-                    id: forwardButton
-                    width: 42
-                    height: 42
-                    hoverEnabled: true
-                    text: "10↷"
-
-                    contentItem: Text {
-                        text: forwardButton.text
-                        color: forwardButton.hovered ? "#f0ce79" : "#ddd8ce"
-                        font.pixelSize: 11
-                        font.weight: Font.DemiBold
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        radius: 21
-                        color: forwardButton.hovered ? "#18ffffff" : "transparent"
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-                    ToolTip.visible: hovered
-                    ToolTip.text: "前进 10 秒"
-                    ToolTip.delay: 450
-                    onClicked: {
-                        player.seekRelative(10)
-                        root.revealControls()
-                    }
-                }
-            }
-
-            Row {
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 2
-
-                Button {
-                    id: audioButton
-                    width: 48
-                    height: 36
-                    hoverEnabled: true
-                    text: "音轨"
-
-                    contentItem: Text {
-                        text: audioButton.text
-                        color: audioButton.hovered ? "#f0ce79" : "#aaa499"
-                        font.pixelSize: 10
-                        font.weight: Font.DemiBold
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        radius: 18
-                        color: audioButton.hovered ? "#16ffffff" : "transparent"
-                    }
-                    onClicked: {
-                        player.cycleAudio()
-                        root.revealControls()
-                    }
-                }
-
-                Button {
-                    id: subtitleButton
-                    width: 48
-                    height: 36
-                    hoverEnabled: true
-                    text: "字幕"
-
-                    contentItem: Text {
-                        text: subtitleButton.text
-                        color: subtitleButton.hovered ? "#f0ce79" : "#aaa499"
-                        font.pixelSize: 10
-                        font.weight: Font.DemiBold
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        radius: 18
-                        color: subtitleButton.hovered ? "#16ffffff" : "transparent"
-                    }
-                    onClicked: {
-                        player.cycleSubtitle()
-                        root.revealControls()
-                    }
-                }
-
-                Button {
-                    id: fullscreenButton
-                    width: 38
-                    height: 38
-                    hoverEnabled: true
-                    text: root.fullscreen ? "↙" : "↗"
-
-                    contentItem: Text {
-                        text: fullscreenButton.text
-                        color: fullscreenButton.hovered ? "#f0ce79" : "#d2ccc1"
-                        font.pixelSize: 17
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        radius: 19
-                        color: fullscreenButton.hovered ? "#16ffffff" : "transparent"
-                    }
-                    ToolTip.visible: hovered
-                    ToolTip.text: root.fullscreen ? "退出全屏" : "进入全屏"
-                    ToolTip.delay: 450
-                    onClicked: {
-                        root.fullscreenRequested()
-                        root.revealControls()
-                    }
-                }
-            }
+        onOpened: controlsTimer.stop()
+        onClosed: if (!player.paused)
+            controlsTimer.restart()
+        onTrackSelected: function (trackId) {
+            player.selectSubtitleTrack(trackId);
+            close();
         }
     }
 
     Timer {
         id: controlsTimer
         interval: 2400
-        onTriggered: if (!player.paused) root.controlsVisible = false
+        onTriggered: if (!player.paused)
+            root.controlsVisible = false
     }
 
     Timer {

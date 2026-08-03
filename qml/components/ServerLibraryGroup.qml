@@ -15,7 +15,7 @@ Item {
     property bool expanded: true
 
     signal libraryClicked(int index, string libraryId, string libraryName)
-    signal activateRequested()
+    signal activateRequested
 
     implicitWidth: 204
     implicitHeight: serverHeader.height + libraryViewport.height + 8
@@ -25,12 +25,15 @@ Item {
         width: parent.width
         height: 66
         radius: 16
-        color: serverMouse.containsMouse ? "#211b11"
-              : root.active ? "#1b1710" : "#17140e"
+        color: serverMouse.containsMouse ? "#211b11" : root.active ? "#1b1710" : "#17140e"
         border.width: root.active ? 1 : 0
         border.color: "#3a3322"
 
-        Behavior on color { ColorAnimation { duration: 140 } }
+        Behavior on color {
+            ColorAnimation {
+                duration: 140
+            }
+        }
 
         Rectangle {
             width: 32
@@ -49,21 +52,20 @@ Item {
                 anchors.margins: 6
                 asynchronous: true
                 fillMode: Image.PreserveAspectFit
-                source: root.logoUrl.length
-                        ? "image://cached/" + encodeURIComponent(root.logoUrl + "/emby/Web/Logo.png")
-                        : ""
+                source: root.logoUrl.length ? "image://cached/" + encodeURIComponent(root.logoUrl + "/emby/Web/Logo.png") : ""
 
                 onStatusChanged: {
                     if (status === Image.Error)
-                        source = root.logoUrl + "/web/Logo.png"
+                        source = root.logoUrl + "/web/Logo.png";
                 }
             }
 
-            Text {
+            LucideIcon {
                 anchors.centerIn: parent
-                text: "✦"
+                width: 15
+                height: 15
+                name: "server"
                 color: "#f0cf83"
-                font.pixelSize: 15
                 visible: serverLogo.status !== Image.Ready
             }
 
@@ -108,20 +110,23 @@ Item {
             }
         }
 
-        Text {
+        LucideIcon {
             id: chevron
             width: 20
+            height: 20
             anchors.right: parent.right
             anchors.rightMargin: 9
             anchors.verticalCenter: parent.verticalCenter
-            text: "›"
-            color: serverMouse.containsMouse ? "#e6ca82"
-                  : root.active ? "#c9a85b" : "#95815a"
-            font.pixelSize: 21
-            horizontalAlignment: Text.AlignHCenter
+            name: "chevron-right"
+            color: serverMouse.containsMouse ? "#e6ca82" : root.active ? "#c9a85b" : "#95815a"
             rotation: root.expanded ? 90 : 0
 
-            Behavior on rotation { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+            Behavior on rotation {
+                NumberAnimation {
+                    duration: 180
+                    easing.type: Easing.OutCubic
+                }
+            }
         }
 
         MouseArea {
@@ -133,9 +138,9 @@ Item {
             Accessible.name: root.serverName + (root.expanded ? "，已展开" : "，已折叠")
             onClicked: {
                 if (!root.active)
-                    root.activateRequested()
+                    root.activateRequested();
                 else
-                    root.expanded = !root.expanded
+                    root.expanded = !root.expanded;
             }
         }
     }
@@ -148,7 +153,12 @@ Item {
         height: root.expanded ? libraryColumn.implicitHeight + 4 : 0
         clip: true
 
-        Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+        Behavior on height {
+            NumberAnimation {
+                duration: 200
+                easing.type: Easing.OutCubic
+            }
+        }
 
         Rectangle {
             visible: libraryColumn.implicitHeight > 0
@@ -181,20 +191,22 @@ Item {
 
                     contentItem: Text {
                         text: libraryButton.text
-                        color: root.selectedLibrary === libraryButton.index ? "#f2e5bd"
-                              : libraryButton.hovered ? "#ddd1ba" : "#9f9279"
+                        color: root.selectedLibrary === libraryButton.index ? "#f2e5bd" : libraryButton.hovered ? "#ddd1ba" : "#9f9279"
                         font.pixelSize: 12
                         font.weight: root.selectedLibrary === libraryButton.index ? Font.DemiBold : Font.Normal
                         verticalAlignment: Text.AlignVCenter
                         elide: Text.ElideRight
 
-                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: 120
+                            }
+                        }
                     }
 
                     background: Rectangle {
                         radius: 10
-                        color: root.selectedLibrary === libraryButton.index ? "#2b2315"
-                              : libraryButton.hovered ? "#18150f" : "transparent"
+                        color: root.selectedLibrary === libraryButton.index ? "#2b2315" : libraryButton.hovered ? "#18150f" : "transparent"
 
                         Rectangle {
                             width: 7
