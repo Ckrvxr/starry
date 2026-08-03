@@ -23,17 +23,15 @@ ApplicationWindow {
     property bool detailVisible: false
     property var detailMedia: ({})
     property bool pageTransitionActive: false
-    readonly property string activePageKey: settingsVisible ? "settings"
-        : detailVisible ? "detail:" + String(detailMedia.id || "")
-        : selectedNav === 0 ? "home" : "library:" + String(selectedNav)
-    readonly property int homeHeroCount: Math.min(5, emby.items.length)
-    readonly property var homeHero: homeHeroCount > 0
-        ? emby.items[Math.min(homeHeroIndex, homeHeroCount - 1)] : ({})
+    readonly property string activePageKey: settingsVisible ? "settings" : detailVisible ? "detail:" + String(detailMedia.id || "") : selectedNav === 0 ? "home" : "library:" + String(selectedNav)
+    readonly property var homeHeroItems: emby.hotItems.length > 0 ? emby.hotItems : emby.items
+    readonly property int homeHeroCount: Math.min(5, homeHeroItems.length)
+    readonly property var homeHero: homeHeroCount > 0 ? homeHeroItems[Math.min(homeHeroIndex, homeHeroCount - 1)] : ({})
     property bool isFullscreen: visibility === Window.FullScreen
 
     onActivePageKeyChanged: {
-        pageTransitionActive = true
-        pageTransitionTimer.restart()
+        pageTransitionActive = true;
+        pageTransitionTimer.restart();
     }
 
     Timer {
@@ -43,29 +41,27 @@ ApplicationWindow {
     }
 
     function serverNameFromUrl(value) {
-        const host = String(value || "")
-            .replace(/^https?:\/\//, "")
-            .replace(/\/.*$/, "")
-        return host.length > 0 ? host : "Emby Server"
+        const host = String(value || "").replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+        return host.length > 0 ? host : "Emby Server";
     }
 
     function stepHomeHero(step) {
         if (homeHeroCount < 1)
-            return
-        homeHeroIndex = (homeHeroIndex + step + homeHeroCount) % homeHeroCount
+            return;
+        homeHeroIndex = (homeHeroIndex + step + homeHeroCount) % homeHeroCount;
     }
 
     function openDetail(item) {
-        detailMedia = item
-        detailVisible = true
-        emby.loadItem(item.id)
+        detailMedia = item;
+        detailVisible = true;
+        emby.loadItem(item.id);
         if (item.type === "Series")
-            emby.loadEpisodes(item.id)
+            emby.loadEpisodes(item.id);
     }
 
     function closeDetail() {
-        detailVisible = false
-        detailMedia = ({})
+        detailVisible = false;
+        detailMedia = ({});
     }
 
     Rectangle {
@@ -87,9 +83,18 @@ ApplicationWindow {
                 anchors.fill: parent
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
-                    GradientStop { position: 0; color: "#070706" }
-                    GradientStop { position: 0.48; color: "#0d0c09" }
-                    GradientStop { position: 1; color: "#171207" }
+                    GradientStop {
+                        position: 0
+                        color: "#070706"
+                    }
+                    GradientStop {
+                        position: 0.48
+                        color: "#0d0c09"
+                    }
+                    GradientStop {
+                        position: 1
+                        color: "#171207"
+                    }
                 }
             }
 
@@ -115,13 +120,48 @@ ApplicationWindow {
 
             Repeater {
                 model: [
-                    { "x": 0.24, "y": 0.09, "s": 2, "o": 0.24 },
-                    { "x": 0.49, "y": 0.16, "s": 1, "o": 0.32 },
-                    { "x": 0.73, "y": 0.08, "s": 2, "o": 0.2 },
-                    { "x": 0.91, "y": 0.31, "s": 1, "o": 0.26 },
-                    { "x": 0.64, "y": 0.7, "s": 2, "o": 0.18 },
-                    { "x": 0.38, "y": 0.86, "s": 1, "o": 0.28 },
-                    { "x": 0.84, "y": 0.91, "s": 2, "o": 0.2 }
+                    {
+                        "x": 0.24,
+                        "y": 0.09,
+                        "s": 2,
+                        "o": 0.24
+                    },
+                    {
+                        "x": 0.49,
+                        "y": 0.16,
+                        "s": 1,
+                        "o": 0.32
+                    },
+                    {
+                        "x": 0.73,
+                        "y": 0.08,
+                        "s": 2,
+                        "o": 0.2
+                    },
+                    {
+                        "x": 0.91,
+                        "y": 0.31,
+                        "s": 1,
+                        "o": 0.26
+                    },
+                    {
+                        "x": 0.64,
+                        "y": 0.7,
+                        "s": 2,
+                        "o": 0.18
+                    },
+                    {
+                        "x": 0.38,
+                        "y": 0.86,
+                        "s": 1,
+                        "o": 0.28
+                    },
+                    {
+                        "x": 0.84,
+                        "y": 0.91,
+                        "s": 2,
+                        "o": 0.2
+                    }
                 ]
                 delegate: Rectangle {
                     required property var modelData
@@ -153,13 +193,48 @@ ApplicationWindow {
 
                     Repeater {
                         model: [
-                            { "x": 25, "y": 96, "s": 2, "o": 0.55 },
-                            { "x": 207, "y": 122, "s": 2, "o": 0.38 },
-                            { "x": 226, "y": 242, "s": 1, "o": 0.56 },
-                            { "x": 18, "y": 334, "s": 2, "o": 0.28 },
-                            { "x": 216, "y": 468, "s": 2, "o": 0.4 },
-                            { "x": 28, "y": 596, "s": 1, "o": 0.5 },
-                            { "x": 201, "y": 690, "s": 1, "o": 0.42 }
+                            {
+                                "x": 25,
+                                "y": 96,
+                                "s": 2,
+                                "o": 0.55
+                            },
+                            {
+                                "x": 207,
+                                "y": 122,
+                                "s": 2,
+                                "o": 0.38
+                            },
+                            {
+                                "x": 226,
+                                "y": 242,
+                                "s": 1,
+                                "o": 0.56
+                            },
+                            {
+                                "x": 18,
+                                "y": 334,
+                                "s": 2,
+                                "o": 0.28
+                            },
+                            {
+                                "x": 216,
+                                "y": 468,
+                                "s": 2,
+                                "o": 0.4
+                            },
+                            {
+                                "x": 28,
+                                "y": 596,
+                                "s": 1,
+                                "o": 0.5
+                            },
+                            {
+                                "x": 201,
+                                "y": 690,
+                                "s": 1,
+                                "o": 0.42
+                            }
                         ]
                         delegate: Rectangle {
                             required property var modelData
@@ -230,7 +305,11 @@ ApplicationWindow {
                             color: settingsMouse.containsMouse || window.settingsVisible ? "#272014" : "transparent"
                             border.width: 0
 
-                            Behavior on color { ColorAnimation { duration: 120 } }
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 120
+                                }
+                            }
 
                             LucideIcon {
                                 anchors.centerIn: parent
@@ -239,7 +318,11 @@ ApplicationWindow {
                                 name: "settings"
                                 color: settingsMouse.containsMouse || window.settingsVisible ? "#edc86d" : "#8f7c58"
 
-                                Behavior on color { ColorAnimation { duration: 120 } }
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: 120
+                                    }
+                                }
                             }
 
                             MouseArea {
@@ -250,8 +333,8 @@ ApplicationWindow {
                                 Accessible.role: Accessible.Button
                                 Accessible.name: "设置"
                                 onClicked: {
-                                    window.settingsVisible = true
-                                    window.closeDetail()
+                                    window.settingsVisible = true;
+                                    window.closeDetail();
                                 }
                             }
                         }
@@ -267,11 +350,14 @@ ApplicationWindow {
                         anchors.topMargin: 10
                         height: 66
                         radius: 16
-                        color: homeMouse.containsMouse ? "#211b11"
-                              : window.selectedNav === 0 ? "#272014" : "#17140e"
+                        color: homeMouse.containsMouse ? "#211b11" : window.selectedNav === 0 ? "#272014" : "#17140e"
                         border.width: 0
 
-                        Behavior on color { ColorAnimation { duration: 140 } }
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: 140
+                            }
+                        }
 
                         Rectangle {
                             width: 32
@@ -301,7 +387,11 @@ ApplicationWindow {
                             font.pixelSize: 13
                             font.weight: Font.DemiBold
 
-                            Behavior on color { ColorAnimation { duration: 120 } }
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 120
+                                }
+                            }
                         }
 
                         Rectangle {
@@ -322,12 +412,12 @@ ApplicationWindow {
                             Accessible.role: Accessible.Button
                             Accessible.name: "首页"
                             onClicked: {
-                                window.closeDetail()
-                                window.settingsVisible = false
-                                window.selectedNav = 0
-                                window.selectedLibraryName = ""
-                                window.homeHeroIndex = 0
-                                emby.loadItems()
+                                window.closeDetail();
+                                window.settingsVisible = false;
+                                window.selectedNav = 0;
+                                window.selectedLibraryName = "";
+                                window.homeHeroIndex = 0;
+                                emby.loadItems();
                             }
                         }
                     }
@@ -356,32 +446,28 @@ ApplicationWindow {
 
                                 delegate: ServerLibraryGroup {
                                     width: parent.width
-                                    serverName: modelData.displayName && modelData.displayName.length > 0
-                                                ? modelData.displayName
-                                                : window.serverNameFromUrl(modelData.url)
+                                    serverName: modelData.displayName && modelData.displayName.length > 0 ? modelData.displayName : window.serverNameFromUrl(modelData.url)
                                     serverAddress: modelData.userName + " · EMBY"
                                     logoUrl: modelData.url
                                     libraries: emby.serverUrl === modelData.url ? emby.libraries : []
                                     active: emby.serverUrl === modelData.url
                                     expanded: emby.serverUrl === modelData.url
-                                    selectedLibrary: emby.serverUrl === modelData.url
-                                                     && window.selectedNav >= 10
-                                                     ? window.selectedNav - 10 : -1
+                                    selectedLibrary: emby.serverUrl === modelData.url && window.selectedNav >= 10 ? window.selectedNav - 10 : -1
 
-                                    onLibraryClicked: function(index, libraryId, libraryName) {
-                                        window.closeDetail()
-                                        window.settingsVisible = false
-                                        window.selectedNav = 10 + index
-                                        window.selectedLibraryName = libraryName
-                                        emby.loadItems(libraryId)
+                                    onLibraryClicked: function (index, libraryId, libraryName) {
+                                        window.closeDetail();
+                                        window.settingsVisible = false;
+                                        window.selectedNav = 10 + index;
+                                        window.selectedLibraryName = libraryName;
+                                        emby.loadItems(libraryId);
                                     }
 
                                     onActivateRequested: {
-                                        window.closeDetail()
-                                        window.settingsVisible = false
-                                        window.selectedNav = 0
-                                        window.selectedLibraryName = ""
-                                        emby.switchServer(modelData.url)
+                                        window.closeDetail();
+                                        window.settingsVisible = false;
+                                        window.selectedNav = 0;
+                                        window.selectedLibraryName = "";
+                                        emby.switchServer(modelData.url);
                                     }
                                 }
                             }
@@ -414,10 +500,14 @@ ApplicationWindow {
                         resume: emby.resumeItems
 
                         onPlayRequested: playerLayer.start(window.homeHero)
-                        onResumePlayRequested: function(item) { playerLayer.start(item) }
+                        onResumePlayRequested: function (item) {
+                            playerLayer.start(item);
+                        }
                         onPreviousRequested: window.stepHomeHero(-1)
                         onNextRequested: window.stepHomeHero(1)
-                        onIndexRequested: function(index) { window.homeHeroIndex = index }
+                        onIndexRequested: function (index) {
+                            window.homeHeroIndex = index;
+                        }
 
                         Timer {
                             interval: 8000
@@ -434,11 +524,12 @@ ApplicationWindow {
                         contentHeight: contentColumn.height + 60
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
-                        ScrollBar.vertical: ScrollBar { }
+                        ScrollBar.vertical: ScrollBar {}
 
                         Column {
                             id: contentColumn
-                            x: 34; y: 24
+                            x: 34
+                            y: 24
                             width: contentFlick.width - 68
                             spacing: 26
 
@@ -446,28 +537,55 @@ ApplicationWindow {
                                 width: parent.width
                                 Text {
                                     text: window.selectedLibraryName || "媒体库"
-                                    color: "#f3eddd"; font.pixelSize: 25; font.weight: Font.Bold
+                                    color: "#f3eddd"
+                                    font.pixelSize: 25
+                                    font.weight: Font.Bold
                                     Layout.fillWidth: true
                                 }
                                 TextField {
                                     id: searchField
-                                    Layout.preferredWidth: 280; Layout.preferredHeight: 42
+                                    Layout.preferredWidth: 280
+                                    Layout.preferredHeight: 42
                                     placeholderText: "搜索电影、剧集…"
-                                    color: "#f4efdf"; placeholderTextColor: "#77705f"; leftPadding: 16
-                                    background: Rectangle { color: "#1a1811"; radius: 21; border.color: searchField.activeFocus ? "#c9a85b" : "#393326" }
-                                    Timer {
-                                        interval: 350; running: searchField.text.length > 0; onTriggered: emby.search(searchField.text)
+                                    color: "#f4efdf"
+                                    placeholderTextColor: "#77705f"
+                                    leftPadding: 16
+                                    background: Rectangle {
+                                        color: "#1a1811"
+                                        radius: 21
+                                        border.color: searchField.activeFocus ? "#c9a85b" : "#393326"
                                     }
-                                    onTextEdited: if (text.length === 0) emby.loadItems()
+                                    Timer {
+                                        interval: 350
+                                        running: searchField.text.length > 0
+                                        onTriggered: emby.search(searchField.text)
+                                    }
+                                    onTextEdited: if (text.length === 0)
+                                        emby.loadItems()
                                     onAccepted: emby.search(text)
                                 }
-                                BusyIndicator { running: emby.busy; visible: running; implicitWidth: 28; implicitHeight: 28 }
+                                BusyIndicator {
+                                    running: emby.busy
+                                    visible: running
+                                    implicitWidth: 28
+                                    implicitHeight: 28
+                                }
                             }
 
                             RowLayout {
                                 width: parent.width
-                                Text { text: searchField.text.length > 0 ? "搜索结果" : "最近添加"; color: "#eee7d6"; font.pixelSize: 18; font.weight: Font.DemiBold; Layout.fillWidth: true }
-                                Text { text: emby.items.length + " 项"; color: "#827962"; font.pixelSize: 12 }
+                                Text {
+                                    text: searchField.text.length > 0 ? "搜索结果" : "最近添加"
+                                    color: "#eee7d6"
+                                    font.pixelSize: 18
+                                    font.weight: Font.DemiBold
+                                    Layout.fillWidth: true
+                                }
+                                Text {
+                                    text: emby.items.length + " 项"
+                                    color: "#827962"
+                                    font.pixelSize: 12
+                                }
                             }
 
                             GridView {
@@ -506,15 +624,15 @@ ApplicationWindow {
                         anchors.fill: parent
                         z: 20
                         visible: window.detailVisible
-                        media: emby.currentItem.id === window.detailMedia.id
-                               ? emby.currentItem : window.detailMedia
+                        media: emby.currentItem.id === window.detailMedia.id ? emby.currentItem : window.detailMedia
                         loading: emby.busy && emby.currentItem.id !== window.detailMedia.id
                         episodes: emby.episodes
-                        loadingEpisodes: window.detailMedia.type === "Series"
-                                         && emby.busy && emby.episodes.length === 0
+                        loadingEpisodes: window.detailMedia.type === "Series" && emby.busy && emby.episodes.length === 0
 
                         onBackRequested: window.closeDetail()
-                        onPlayRequested: function(media) { playerLayer.start(media) }
+                        onPlayRequested: function (media) {
+                            playerLayer.start(media);
+                        }
                     }
 
                     SettingsView {
@@ -522,12 +640,12 @@ ApplicationWindow {
                         anchors.fill: parent
                         visible: window.settingsVisible
 
-                        onSwitchRequested: function(url) {
-                            window.settingsVisible = false
-                            window.closeDetail()
-                            window.selectedNav = 0
-                            window.selectedLibraryName = ""
-                            emby.switchServer(url)
+                        onSwitchRequested: function (url) {
+                            window.settingsVisible = false;
+                            window.closeDetail();
+                            window.selectedNav = 0;
+                            window.selectedLibraryName = "";
+                            emby.switchServer(url);
                         }
                     }
 
@@ -547,7 +665,8 @@ ApplicationWindow {
         z: 100
         fullscreen: window.isFullscreen
         onFullscreenRequested: window.isFullscreen ? window.showNormal() : window.showFullScreen()
-        onCloseRequested: if (window.isFullscreen) window.showNormal()
+        onCloseRequested: if (window.isFullscreen)
+            window.showNormal()
     }
 
     // 自绘标题栏：无边框窗口下保留原生窗口的拖动和系统操作能力。
@@ -582,7 +701,8 @@ ApplicationWindow {
             spacing: 8
 
             Button {
-                width: 14; height: 14
+                width: 14
+                height: 14
                 hoverEnabled: true
                 onClicked: Qt.quit()
                 background: Rectangle {
@@ -594,7 +714,8 @@ ApplicationWindow {
             }
 
             Button {
-                width: 14; height: 14
+                width: 14
+                height: 14
                 hoverEnabled: true
                 onClicked: window.showMinimized()
                 background: Rectangle {
@@ -606,7 +727,8 @@ ApplicationWindow {
             }
 
             Button {
-                width: 14; height: 14
+                width: 14
+                height: 14
                 hoverEnabled: true
                 onClicked: window.visibility === Window.Maximized ? window.showNormal() : window.showMaximized()
                 background: Rectangle {
@@ -621,10 +743,12 @@ ApplicationWindow {
 
     Connections {
         target: emby
-        function onLoginSucceeded() { searchField.clear() }
+        function onLoginSucceeded() {
+            searchField.clear();
+        }
         function onItemsChanged() {
             if (window.homeHeroIndex >= window.homeHeroCount)
-                window.homeHeroIndex = 0
+                window.homeHeroIndex = 0;
         }
     }
 }

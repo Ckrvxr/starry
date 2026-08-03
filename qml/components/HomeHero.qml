@@ -98,20 +98,20 @@ Item {
                     color: "#ff080806"
                 }
                 GradientStop {
+                    position: 0.18
+                    color: "#ff080806"
+                }
+                GradientStop {
                     position: 0.36
-                    color: "#f2080806"
+                    color: "#a8080806"
                 }
                 GradientStop {
-                    position: 0.62
-                    color: "#62080806"
+                    position: 0.56
+                    color: "#38080806"
                 }
                 GradientStop {
-                    position: 0.84
-                    color: "#12080806"
-                }
-                GradientStop {
-                    position: 1
-                    color: "#05080806"
+                    position: 0.68
+                    color: "#00080806"
                 }
             }
         }
@@ -151,7 +151,7 @@ Item {
                 spacing: 10
 
                 Text {
-                    text: "首页推荐"
+                    text: "热播推荐"
                     color: "#d5aa4c"
                     font.pixelSize: 11
                     font.weight: Font.Bold
@@ -441,7 +441,6 @@ Item {
                 spacing: 16
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.horizontal: ScrollBar {}
                 model: root.resume
 
                 delegate: Item {
@@ -453,10 +452,22 @@ Item {
                         id: resumePoster
                         width: 270
                         height: Math.min(152, resumeList.height - 52)
-                        radius: 10
+                        radius: 12
                         color: "#14120c"
                         clip: true
                         scale: resumeMouse.containsMouse ? 0.985 : 1
+                        layer.enabled: true
+                        layer.effect: MultiEffect {
+                            maskEnabled: true
+                            maskSource: ShaderEffectSource {
+                                sourceItem: Rectangle {
+                                    width: resumePoster.width
+                                    height: resumePoster.height
+                                    radius: resumePoster.radius
+                                    color: "white"
+                                }
+                            }
+                        }
 
                         Behavior on scale {
                             NumberAnimation {
@@ -548,9 +559,13 @@ Item {
                         text: {
                             const duration = Number(modelData.duration || 0);
                             const position = Number(modelData.position || 0);
+                            const series = String(modelData.seriesName || "");
+                            let status = "";
                             if (duration > 0 && position > 0)
-                                return "剩余 " + root.formatTime(duration - position);
-                            return modelData.type === "Movie" ? "电影" : modelData.type === "Series" ? "剧集" : (modelData.type || "影视");
+                                status = "剩余 " + root.formatTime(duration - position);
+                            else
+                                status = modelData.type === "Movie" ? "电影" : modelData.type === "Series" ? "剧集" : (modelData.type || "影视");
+                            return series.length > 0 ? status + " · " + series : status;
                         }
                         color: "#8d7d5d"
                         font.pixelSize: 11

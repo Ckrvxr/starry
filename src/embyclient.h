@@ -18,6 +18,7 @@ class EmbyClient final : public QObject
     Q_PROPERTY(QVariantList libraries READ libraries NOTIFY librariesChanged)
     Q_PROPERTY(QVariantList servers READ servers NOTIFY serversChanged)
     Q_PROPERTY(QVariantList resumeItems READ resumeItems NOTIFY resumeItemsChanged)
+    Q_PROPERTY(QVariantList hotItems READ hotItems NOTIFY hotItemsChanged)
     Q_PROPERTY(QVariantList items READ items NOTIFY itemsChanged)
     Q_PROPERTY(QVariantList episodes READ episodes NOTIFY episodesChanged)
     Q_PROPERTY(QVariantMap currentItem READ currentItem NOTIFY currentItemChanged)
@@ -33,6 +34,7 @@ public:
     QVariantList libraries() const { return m_libraries; }
     QVariantList servers() const { return m_servers; }
     QVariantList resumeItems() const { return m_resumeItems; }
+    QVariantList hotItems() const { return m_hotItems; }
     QVariantList items() const { return m_items; }
     QVariantList episodes() const { return m_episodes; }
     QVariantMap currentItem() const { return m_currentItem; }
@@ -45,6 +47,7 @@ public:
     Q_INVOKABLE void renameServer(const QString &url, const QString &displayName);
     Q_INVOKABLE void loadLibraries();
     Q_INVOKABLE void loadResume();
+    Q_INVOKABLE void loadHot();
     Q_INVOKABLE void loadItems(const QString &parentId = {}, const QString &includeTypes = {});
     Q_INVOKABLE void loadEpisodes(const QString &seriesId);
     Q_INVOKABLE void search(const QString &term);
@@ -63,6 +66,7 @@ signals:
     void librariesChanged();
     void serversChanged();
     void resumeItemsChanged();
+    void hotItemsChanged();
     void itemsChanged();
     void episodesChanged();
     void currentItemChanged();
@@ -94,6 +98,7 @@ private:
     QVariantList m_libraries;
     QVariantList m_servers;
     QVariantList m_resumeItems;
+    QVariantList m_hotItems;
     QVariantList m_items;
     QVariantList m_episodes;
     QVariantMap m_currentItem;

@@ -193,6 +193,7 @@ void EmbyClient::logout()
     m_userName.clear();
     m_displayName.clear();
     m_libraries.clear();
+    m_hotItems.clear();
     m_items.clear();
     m_episodes.clear();
     m_currentItem.clear();
@@ -208,6 +209,7 @@ void EmbyClient::logout()
     emit serversChanged();
     emit sessionChanged();
     emit librariesChanged();
+    emit hotItemsChanged();
     emit itemsChanged();
     emit episodesChanged();
     emit currentItemChanged();
@@ -235,11 +237,13 @@ void EmbyClient::switchServer(const QString &url)
     m_deviceId = query.value(3).toString();
     m_displayName = query.value(4).toString();
     m_libraries.clear();
+    m_hotItems.clear();
     m_items.clear();
     m_episodes.clear();
     m_currentItem.clear();
     emit sessionChanged();
     emit librariesChanged();
+    emit hotItemsChanged();
     emit itemsChanged();
     emit episodesChanged();
     emit currentItemChanged();
@@ -285,11 +289,13 @@ void EmbyClient::removeServer(const QString &url)
         m_userName.clear();
         m_displayName.clear();
         m_libraries.clear();
+        m_hotItems.clear();
         m_items.clear();
         m_episodes.clear();
         m_currentItem.clear();
         emit sessionChanged();
         emit librariesChanged();
+        emit hotItemsChanged();
         emit itemsChanged();
         emit episodesChanged();
         emit currentItemChanged();
@@ -433,8 +439,34 @@ void EmbyClient::loadLibraries()
             next.append(mapItem(value.toObject()));
         m_libraries = next;
         emit librariesChanged();
+        loadHot();
         loadItems();
         loadResume();
+    });
+}
+
+void EmbyClient::loadHot()
+{
+    if (!connected())
+        return;
+    QUrlQuery query;
+    const QString threeMonthsAgo = QDateTime::currentDateTimeUtc().addMonths(-3).toString(Qt::ISODate);
+    query.addQueryItem("Recursive", "true");
+    query.addQueryItem("MinDateLastSavedForUser", threeMonthsAgo);
+    query.addQueryItem("SortBy", "PlayCount");
+    query.addQueryItem("SortOrder", "Descending");
+    query.addQueryItem("Limit", "5");
+    query.addQueryItem("Fields", "Overview,Genres,PremiereDate,PrimaryImageAspectRatio,SeriesName,ParentIndexNumber,IndexNumber");
+    query.addQueryItem("EnableUserData", "true");
+    query.addQueryItem("IncludeItemTypes", "Movie,Episode");
+    const QString path = QStringLiteral("/emby/Users/%1/Items?%2")
+        .arg(m_userId, query.toString(QUrl::FullyEncoded));
+    request("GET", path, {}, [this](const QJsonObject &json) {
+        QVariantList next;
+        for (const QJsonValue &value : json.value("Items").toArray())
+            next.append(mapItem(value.toObject()));
+        m_hotItems = next;
+        emit hotItemsChanged();
     });
 }
 
@@ -444,7 +476,7 @@ void EmbyClient::loadResume()
         return;
     QUrlQuery query;
     query.addQueryItem("Limit", "12");
-    query.addQueryItem("Fields", "Overview,PrimaryImageAspectRatio");
+    query.addQueryItem("Fields", "Overview,PrimaryImageAspectRatio,SeriesName,ParentIndexNumber,IndexNumber");
     const QString path = QStringLiteral("/emby/Users/%1/Items/Resume?%2")
         .arg(m_userId, query.toString(QUrl::FullyEncoded));
     request("GET", path, {}, [this](const QJsonObject &json) {
