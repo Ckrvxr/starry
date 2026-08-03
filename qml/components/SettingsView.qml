@@ -261,17 +261,17 @@ Item {
                 }
             }
 
-            // ── mpv设置 ────────────────────────────────
+            // ── MPV 设置 ───────────────────────────────
             SectionCard {
-                height: 236
+                height: 650
 
                 Column {
                     anchors.fill: parent
                     anchors.margins: 20
-                    spacing: 14
+                    spacing: 12
 
                     SectionHeader {
-                        sectionTitle: "mpv设置"
+                        sectionTitle: "MPV 设置"
                     }
 
                     Rectangle {
@@ -280,155 +280,109 @@ Item {
                         color: "#262115"
                     }
 
-                    Row {
+                    Text {
                         width: parent.width
-                        spacing: 12
+                        text: "按 mpv.conf 格式逐行编辑。前向缓存与后向缓存分别由 demuxer-max-bytes 和 demuxer-max-back-bytes 控制。"
+                        color: "#9b8d70"
+                        font.pixelSize: 11
+                        wrapMode: Text.Wrap
+                    }
 
-                        Text {
-                            text: "硬解模式"
-                            color: "#c9bda2"
-                            font.pixelSize: 12
-                            width: 100
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
+                    Rectangle {
+                        id: configEditorFrame
+                        width: parent.width
+                        height: 450
+                        radius: 12
+                        color: "#0d0d0a"
+                        border.width: 1
+                        border.color: configEditor.activeFocus ? "#8f7440" : "#393326"
+                        clip: true
 
-                        ComboBox {
-                            id: hwdecBox
-                            width: 220
-                            implicitHeight: 36
-                            model: ["auto-safe", "auto", "no"]
-                            currentIndex: {
-                                const idx = model.indexOf(settings.hwdec);
-                                return idx >= 0 ? idx : 0;
-                            }
+                        ScrollView {
+                            anchors.fill: parent
+                            anchors.margins: 2
+                            clip: true
+                            ScrollBar.horizontal.policy: ScrollBar.AsNeeded
+                            ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
-                            onActivated: settings.setHwdec(currentText)
-
-                            contentItem: Text {
-                                text: hwdecBox.displayText
-                                color: "#f1e7d3"
+                            TextArea {
+                                id: configEditor
+                                text: settings.mpvConfig
+                                color: "#e8dcc0"
+                                selectionColor: "#765c29"
+                                selectedTextColor: "#fff7e3"
+                                font.family: Qt.platform.os === "osx" ? "Menlo" : "monospace"
                                 font.pixelSize: 12
-                                verticalAlignment: Text.AlignVCenter
+                                wrapMode: TextEdit.NoWrap
+                                selectByMouse: true
                                 leftPadding: 12
-                            }
-
-                            background: Rectangle {
-                                radius: 10
-                                color: hwdecBox.hovered ? "#211b11" : "#1a1811"
-                                border.width: 1
-                                border.color: hwdecBox.activeFocus ? "#c9a85b" : "#393326"
-                            }
-
-                            indicator: LucideIcon {
-                                width: 14
-                                height: 14
-                                name: "chevron-down"
-                                color: "#8d7d5d"
-                                anchors.right: parent.right
-                                anchors.rightMargin: 12
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-
-                            popup: Popup {
-                                y: hwdecBox.height + 4
-                                width: hwdecBox.width
-                                padding: 4
-                                background: Rectangle {
-                                    radius: 10
-                                    color: "#1d1910"
-                                    border.width: 1
-                                    border.color: "#3a3322"
-                                }
-                                contentItem: ListView {
-                                    implicitHeight: contentHeight
-                                    clip: true
-                                    model: hwdecBox.popup.visualModel
-                                    delegate: ItemDelegate {
-                                        width: parent.width
-                                        height: 36
-                                        contentItem: Text {
-                                            text: model.text
-                                            color: hwdecBox.currentIndex === index ? "#f2e5bd" : "#c9bda2"
-                                            font.pixelSize: 12
-                                            leftPadding: 12
-                                            verticalAlignment: Text.AlignVCenter
-                                        }
-                                        background: Rectangle {
-                                            radius: 8
-                                            color: parent.hovered ? "#272014" : "transparent"
-                                        }
-                                    }
-                                }
+                                rightPadding: 12
+                                topPadding: 10
+                                bottomPadding: 10
+                                background: null
                             }
                         }
                     }
 
                     Row {
                         width: parent.width
-                        spacing: 12
+                        spacing: 8
 
-                        Text {
-                            text: "音轨语言"
-                            color: "#c9bda2"
-                            font.pixelSize: 12
-                            width: 100
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-
-                        TextField {
-                            id: alangField
-                            width: 220
+                        AccentButton {
+                            width: 116
                             height: 36
-                            text: settings.alang
-                            color: "#f1e7d3"
-                            font.pixelSize: 12
-                            leftPadding: 12
-                            selectByMouse: true
-                            onEditingFinished: settings.setAlang(text)
-                            background: Rectangle {
-                                radius: 10
-                                color: alangField.hovered ? "#211b11" : "#1a1811"
-                                border.width: 1
-                                border.color: alangField.activeFocus ? "#c9a85b" : "#393326"
+                            text: "保存配置"
+                            iconName: "check"
+                            onClicked: {
+                                settings.mpvConfig = configEditor.text;
+                                saveStatus.text = "已保存，将应用于当前及之后播放的媒体";
+                                saveStatus.opacity = 1;
+                                saveStatusTimer.restart();
                             }
                         }
-                    }
 
-                    Row {
-                        width: parent.width
-                        spacing: 12
-
-                        Text {
-                            text: "字幕语言"
-                            color: "#c9bda2"
-                            font.pixelSize: 12
-                            width: 100
-                            anchors.verticalCenter: parent.verticalCenter
+                        AccentButton {
+                            width: 116
+                            height: 36
+                            text: "恢复默认"
+                            iconName: "rotate-ccw"
+                            accentColor: "#4a4232"
+                            onClicked: {
+                                configEditor.text = settings.defaultMpvConfig;
+                                settings.mpvConfig = configEditor.text;
+                                saveStatus.text = "已恢复默认配置";
+                                saveStatus.opacity = 1;
+                                saveStatusTimer.restart();
+                            }
                         }
 
-                        TextField {
-                            id: slangField
-                            width: 220
-                            height: 36
-                            text: settings.slang
-                            color: "#f1e7d3"
-                            font.pixelSize: 12
-                            leftPadding: 12
-                            selectByMouse: true
-                            onEditingFinished: settings.setSlang(text)
-                            background: Rectangle {
-                                radius: 10
-                                color: slangField.hovered ? "#211b11" : "#1a1811"
-                                border.width: 1
-                                border.color: slangField.activeFocus ? "#c9a85b" : "#393326"
+                        Text {
+                            id: saveStatus
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: "#8fbf86"
+                            font.pixelSize: 11
+                            opacity: 0
+
+                            Behavior on opacity {
+                                NumberAnimation {
+                                    duration: 180
+                                }
                             }
+                        }
+
+                        Timer {
+                            id: saveStatusTimer
+                            interval: 2600
+                            onTriggered: saveStatus.opacity = 0
                         }
                     }
 
                     Text {
-                        text: "硬解切换与语言偏好对之后播放的媒体生效"
+                        width: parent.width
+                        text: "注意：Qt 内嵌播放器必须保持 vo=libmpv，编辑器中的 vo 项会保留但不会应用；部分渲染初始化项需重启应用后生效。"
                         color: "#776846"
                         font.pixelSize: 10
+                        wrapMode: Text.Wrap
                     }
                 }
             }

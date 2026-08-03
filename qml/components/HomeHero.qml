@@ -11,6 +11,9 @@ Item {
     property int currentIndex: 0
     property int itemCount: 0
     property var resume: []
+    property bool continueMode: false
+    property real carouselProgress: 0
+    property int carouselInterval: 10000
 
     signal playRequested
     signal previousRequested
@@ -19,6 +22,39 @@ Item {
     signal resumePlayRequested(var item)
 
     clip: true
+
+    function restartCarouselClock() {
+        carouselProgressAnimation.stop();
+        carouselProgress = 0;
+        carouselTimer.stop();
+        if (root.visible && root.itemCount > 1) {
+            carouselProgressAnimation.start();
+            carouselTimer.start();
+        }
+    }
+
+    onCurrentIndexChanged: restartCarouselClock()
+    onItemCountChanged: restartCarouselClock()
+    onVisibleChanged: restartCarouselClock()
+
+    Component.onCompleted: restartCarouselClock()
+
+    NumberAnimation {
+        id: carouselProgressAnimation
+        target: root
+        property: "carouselProgress"
+        from: 0
+        to: 1
+        duration: root.carouselInterval
+        easing.type: Easing.Linear
+    }
+
+    Timer {
+        id: carouselTimer
+        interval: root.carouselInterval
+        repeat: false
+        onTriggered: root.nextRequested()
+    }
 
     function formatTime(seconds) {
         if (!isFinite(seconds) || seconds < 0)
@@ -151,7 +187,7 @@ Item {
                 spacing: 10
 
                 Text {
-                    text: "热播推荐"
+                    text: root.continueMode ? "继续观看" : "热播推荐"
                     color: "#d5aa4c"
                     font.pixelSize: 11
                     font.weight: Font.Bold
@@ -253,7 +289,7 @@ Item {
                 visible: root.itemCount > 0
                 width: 144
                 height: 46
-                text: "立即播放"
+                text: root.continueMode ? "继续观看" : "立即播放"
                 hoverEnabled: true
 
                 contentItem: Item {
@@ -369,7 +405,17 @@ Item {
                         width: root.currentIndex === index ? 42 : 16
                         height: 3
                         radius: 2
-                        color: root.currentIndex === index ? "#d6a744" : "#4a473f"
+                        color: "#4a473f"
+                        clip: true
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            width: progressSegment.index === root.currentIndex ? progressSegment.width * root.carouselProgress : 0
+                            radius: parent.radius
+                            color: "#d6a744"
+                        }
 
                         Behavior on width {
                             NumberAnimation {
@@ -387,7 +433,11 @@ Item {
                             anchors.fill: parent
                             anchors.margins: -7
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.indexRequested(progressSegment.index)
+                            onClicked: {
+                                if (progressSegment.index === root.currentIndex)
+                                    root.restartCarouselClock();
+                                root.indexRequested(progressSegment.index);
+                            }
                         }
                     }
                 }
@@ -572,12 +622,97 @@ Item {
                         elide: Text.ElideRight
                     }
 
+                    Menu {
+                        id: resumeMenu
+                        width: 188
+                        padding: 6
+
+                        background: Rectangle {
+                            radius: 12
+                            color: "#f21a1813"
+                            border.width: 1
+                            border.color: "#564a32"
+                        }
+
+                        MenuItem {
+                            id: markPlayedItem
+                            height: 38
+                            hoverEnabled: true
+
+                            contentItem: Row {
+                                spacing: 9
+
+                                LucideIcon {
+                                    width: 15
+                                    height: 15
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    name: "check"
+                                    color: markPlayedItem.highlighted ? "#f0cf7b" : "#c5ad72"
+                                }
+
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "标记为已观看"
+                                    color: markPlayedItem.highlighted ? "#f6eee2" : "#d8cfc0"
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+
+                            background: Rectangle {
+                                radius: 8
+                                color: markPlayedItem.highlighted ? "#20ffffff" : "transparent"
+                            }
+
+                            onTriggered: emby.markPlayed(String(modelData.id || ""))
+                        }
+
+                        MenuItem {
+                            id: removeResumeItem
+                            height: 38
+                            hoverEnabled: true
+
+                            contentItem: Row {
+                                spacing: 9
+
+                                LucideIcon {
+                                    width: 15
+                                    height: 15
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    name: "trash-2"
+                                    color: removeResumeItem.highlighted ? "#f08a78" : "#c97869"
+                                }
+
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "删除观看记录"
+                                    color: removeResumeItem.highlighted ? "#f6eee2" : "#d8cfc0"
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+
+                            background: Rectangle {
+                                radius: 8
+                                color: removeResumeItem.highlighted ? "#20ffffff" : "transparent"
+                            }
+
+                            onTriggered: emby.clearWatchHistory(String(modelData.id || ""))
+                        }
+                    }
+
                     MouseArea {
                         id: resumeMouse
                         anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
                         cursorShape: Qt.PointingHandCursor
                         hoverEnabled: true
-                        onClicked: root.resumePlayRequested(modelData)
+                        onClicked: function (mouse) {
+                            if (mouse.button === Qt.RightButton)
+                                resumeMenu.popup();
+                            else
+                                root.resumePlayRequested(modelData);
+                        }
                     }
                 }
             }

@@ -1,4 +1,5 @@
 #include "mpvplayer.h"
+#include "macoswindow.h"
 
 #include <QMetaObject>
 #include <QOpenGLContext>
@@ -6,6 +7,7 @@
 #include <QOpenGLFunctions>
 #include <QQuickOpenGLUtils>
 #include <QQuickWindow>
+#include <QTimer>
 
 #include <mpv/client.h>
 #include <mpv/render_gl.h>
@@ -13,6 +15,29 @@
 #include <vector>
 
 namespace {
+QString initialMpvConfig;
+
+QList<QPair<QString, QString>> parseMpvConfig(const QString &config)
+{
+    QList<QPair<QString, QString>> options;
+    const QStringList lines = config.split(QLatin1Char('\n'));
+    for (QString line : lines) {
+        line = line.trimmed();
+        if (line.isEmpty() || line.startsWith(QLatin1Char('#')) || line.startsWith(QLatin1Char(';')))
+            continue;
+        if (line.startsWith(QStringLiteral("--")))
+            line.remove(0, 2);
+        const qsizetype separator = line.indexOf(QLatin1Char('='));
+        if (separator <= 0)
+            continue;
+        const QString key = line.left(separator).trimmed();
+        const QString value = line.mid(separator + 1).trimmed();
+        if (!key.isEmpty() && !value.isEmpty())
+            options.append({key, value});
+    }
+    return options;
+}
+
 void *getProcAddress(void *, const char *name)
 {
     QOpenGLContext *context = QOpenGLContext::currentContext();
@@ -89,6 +114,9 @@ public:
     {
         QOpenGLFramebufferObjectFormat format;
         format.setAttachment(QOpenGLFramebufferObject::CombinedDepthStencil);
+        // HDR 高光会产生大于 1.0 的线性/扩展色值，默认 RGBA8 会在进入
+        // Qt Quick 合成前把它们截断。半精度浮点纹理保留完整 EDR 范围。
+        format.setInternalTextureFormat(GL_RGBA16F);
         return new QOpenGLFramebufferObject(size, format);
     }
 
@@ -125,6 +153,7 @@ private:
 MpvPlayer::MpvPlayer(QQuickItem *parent)
     : QQuickFramebufferObject(parent)
 {
+    m_userConfig = initialMpvConfig;
     setMirrorVertically(false);
     m_mpv = mpv_create();
     if (!m_mpv) {
@@ -133,11 +162,17 @@ MpvPlayer::MpvPlayer(QQuickItem *parent)
         return;
     }
     mpv_set_option_string(m_mpv, "vo", "libmpv");
-    mpv_set_option_string(m_mpv, "hwdec", "auto-safe");
     mpv_set_option_string(m_mpv, "keep-open", "yes");
     mpv_set_option_string(m_mpv, "osd-level", "0");
-    mpv_set_option_string(m_mpv, "alang", "chi,zho,zh,eng,en");
-    mpv_set_option_string(m_mpv, "slang", "chi,zho,zh,eng,en");
+    for (const auto &[key, value] : parseMpvConfig(initialMpvConfig)) {
+        if (key.compare(QStringLiteral("vo"), Qt::CaseInsensitive) == 0)
+            continue;
+        const QByteArray keyBytes = key.toUtf8();
+        const QByteArray valueBytes = value.toUtf8();
+        const int result = mpv_set_option_string(m_mpv, keyBytes.constData(), valueBytes.constData());
+        if (result < 0)
+            qWarning() << "[mpv] 无法应用初始化设置" << key << ':' << mpv_error_string(result);
+    }
     const int initResult = mpv_initialize(m_mpv);
     if (initResult < 0) {
         qWarning() << "[mpv] mpv_initialize 失败:" << mpv_error_string(initResult);
@@ -160,6 +195,11 @@ MpvPlayer::MpvPlayer(QQuickItem *parent)
     mpv_observe_property(m_mpv, 11, "demuxer-cache-idle", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 12, "paused-for-cache", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 13, "demuxer-cache-state", MPV_FORMAT_NODE);
+    mpv_observe_property(m_mpv, 14, "video-target-params", MPV_FORMAT_NODE);
+    mpv_observe_property(m_mpv, 15, "video-params", MPV_FORMAT_NODE);
+    mpv_observe_property(m_mpv, 16, "options/target-peak", MPV_FORMAT_STRING);
+    mpv_observe_property(m_mpv, 17, "options/target-trc", MPV_FORMAT_STRING);
+    mpv_observe_property(m_mpv, 18, "options/target-prim", MPV_FORMAT_STRING);
     mpv_set_wakeup_callback(m_mpv, &MpvPlayer::wakeup, this);
 }
 
@@ -169,6 +209,11 @@ MpvPlayer::~MpvPlayer()
         mpv_set_wakeup_callback(m_mpv, nullptr, nullptr);
         mpv_terminate_destroy(m_mpv);
     }
+}
+
+void MpvPlayer::setInitialConfig(const QString &config)
+{
+    initialMpvConfig = config;
 }
 
 QQuickFramebufferObject::Renderer *MpvPlayer::createRenderer() const
@@ -252,11 +297,50 @@ void MpvPlayer::handleEvent(mpv_event *event)
                 m_bufferedRanges = ranges;
                 emit bufferedRangesChanged();
             }
+        } else if (name == "video-target-params") {
+            const auto *node = static_cast<mpv_node *>(property->data);
+            const QVariantMap params = nodeToVariant(*node).toMap();
+            if (m_videoTargetParams != params) {
+                m_videoTargetParams = params;
+                emit videoColorInfoChanged();
+            }
+        } else if (name == "video-params") {
+            const auto *node = static_cast<mpv_node *>(property->data);
+            const QVariantMap params = nodeToVariant(*node).toMap();
+            if (m_videoSourceParams != params) {
+                m_videoSourceParams = params;
+                emit videoColorInfoChanged();
+            }
+            if (m_fileLoaded)
+                configureHdrOutput(params);
+        } else if (name == "options/target-peak") {
+            const QString value = QString::fromUtf8(*static_cast<char **>(property->data));
+            if (m_targetPeakSetting != value) {
+                m_targetPeakSetting = value;
+                emit videoColorInfoChanged();
+            }
+        } else if (name == "options/target-trc") {
+            const QString value = QString::fromUtf8(*static_cast<char **>(property->data));
+            if (m_targetTrcSetting != value) {
+                m_targetTrcSetting = value;
+                emit videoColorInfoChanged();
+            }
+        } else if (name == "options/target-prim") {
+            const QString value = QString::fromUtf8(*static_cast<char **>(property->data));
+            if (m_targetPrimSetting != value) {
+                m_targetPrimSetting = value;
+                emit videoColorInfoChanged();
+            }
         }
     } else if (event->event_id == MPV_EVENT_FILE_LOADED) {
+        m_fileLoaded = true;
         if (!m_playing) { m_playing = true; emit playingChanged(); }
+        configureHdrOutput(m_videoSourceParams, true);
+        refreshDisplayHdrInfo();
     } else if (event->event_id == MPV_EVENT_END_FILE) {
+        m_fileLoaded = false;
         if (m_playing) { m_playing = false; emit playingChanged(); }
+        configureHdrOutput({}, true);
         emit playbackEnded();
     } else if (event->event_id == MPV_EVENT_LOG_MESSAGE) {
         auto *message = static_cast<mpv_event_log_message *>(event->data);
@@ -281,14 +365,109 @@ void MpvPlayer::command(const QStringList &args)
         emit mpvError(QString::fromUtf8(mpv_error_string(result)));
 }
 
-void MpvPlayer::applySettings(const QString &hwdec, const QString &alang, const QString &slang)
+void MpvPlayer::applySettings(const QString &config)
 {
     if (!m_mpv)
         return;
-    // hwdec/alang/slang 均为运行时可切换属性，对后续加载的媒体生效
-    mpv_set_property_string(m_mpv, "hwdec", hwdec.toUtf8().constData());
-    mpv_set_property_string(m_mpv, "alang", alang.toUtf8().constData());
-    mpv_set_property_string(m_mpv, "slang", slang.toUtf8().constData());
+
+    m_userConfig = config;
+    QStringList failures;
+    for (const auto &[key, value] : parseMpvConfig(config)) {
+        // QQuickFramebufferObject 依赖 libmpv 渲染 API，切换 vo 会销毁当前嵌入式输出。
+        if (key.compare(QStringLiteral("vo"), Qt::CaseInsensitive) == 0)
+            continue;
+
+        if (key.compare(QStringLiteral("profile"), Qt::CaseInsensitive) == 0) {
+            command({QStringLiteral("apply-profile"), value});
+            continue;
+        }
+
+        const QByteArray keyBytes = key.toUtf8();
+        const QByteArray valueBytes = value.toUtf8();
+        int result = mpv_set_property_string(m_mpv, keyBytes.constData(), valueBytes.constData());
+        if (result < 0) {
+            const QByteArray optionProperty = QByteArrayLiteral("options/") + keyBytes;
+            result = mpv_set_property_string(m_mpv, optionProperty.constData(), valueBytes.constData());
+        }
+        if (result < 0)
+            failures.append(QStringLiteral("%1 (%2)").arg(key, QString::fromUtf8(mpv_error_string(result))));
+    }
+
+    if (!failures.isEmpty())
+        emit mpvError(QStringLiteral("无法应用部分 MPV 设置：%1").arg(failures.join(QStringLiteral("、"))));
+
+    if (m_fileLoaded && !m_videoSourceParams.isEmpty())
+        configureHdrOutput(m_videoSourceParams, true);
+}
+
+QString MpvPlayer::configuredValue(const QString &key, const QString &fallback) const
+{
+    for (const auto &[option, value] : parseMpvConfig(m_userConfig)) {
+        if (option.compare(key, Qt::CaseInsensitive) == 0)
+            return value;
+    }
+    return fallback;
+}
+
+void MpvPlayer::setMpvProperty(const char *name, const QString &value)
+{
+    if (!m_mpv)
+        return;
+    const QByteArray bytes = value.toUtf8();
+    int result = mpv_set_property_string(m_mpv, name, bytes.constData());
+    if (result < 0) {
+        const QByteArray optionName = QByteArrayLiteral("options/") + name;
+        result = mpv_set_property_string(m_mpv, optionName.constData(), bytes.constData());
+    }
+    if (result < 0)
+        qWarning() << "[mpv] 无法设置 EDR 输出参数" << name << value << mpv_error_string(result);
+}
+
+void MpvPlayer::configureHdrOutput(const QVariantMap &sourceParams, bool force)
+{
+    const QString gamma = sourceParams.value(QStringLiteral("gamma")).toString().toLower();
+    const bool hdrSource = gamma == QStringLiteral("pq") || gamma == QStringLiteral("hlg");
+
+    if (!force && m_edrOutputEnabled == hdrSource) {
+        refreshDisplayHdrInfo();
+        return;
+    }
+
+    if (hdrSource) {
+        MacWindowStyler::setEdrEnabled(window(), true);
+        const QVariantMap screenInfo = MacWindowStyler::displayHdrInfo(window());
+        const double headroom = qMax(1.0,
+            qMax(screenInfo.value(QStringLiteral("currentHeadroom")).toDouble(),
+                 screenInfo.value(QStringLiteral("potentialHeadroom")).toDouble()));
+
+        // macOS EDR 使用扩展 SDR 数值承载高光。QML 与最终窗口均为扩展
+        // sRGB，因此 mpv 也收敛到 BT.709/sRGB，避免把 UI 或视频误标成 P3。
+        setMpvProperty("target-trc", QStringLiteral("srgb"));
+        setMpvProperty("target-prim", QStringLiteral("bt.709"));
+        setMpvProperty("target-peak", QString::number(203.0 * headroom, 'f', 0));
+    } else {
+        MacWindowStyler::setEdrEnabled(window(), false);
+        setMpvProperty("target-trc", configuredValue(QStringLiteral("target-trc"), QStringLiteral("auto")));
+        setMpvProperty("target-prim", configuredValue(QStringLiteral("target-prim"), QStringLiteral("auto")));
+        setMpvProperty("target-peak", configuredValue(QStringLiteral("target-peak"), QStringLiteral("auto")));
+    }
+
+    if (m_edrOutputEnabled != hdrSource) {
+        m_edrOutputEnabled = hdrSource;
+        QTimer::singleShot(100, this, &MpvPlayer::refreshDisplayHdrInfo);
+        QTimer::singleShot(500, this, &MpvPlayer::refreshDisplayHdrInfo);
+    } else {
+        refreshDisplayHdrInfo();
+    }
+}
+
+void MpvPlayer::refreshDisplayHdrInfo()
+{
+    const QVariantMap info = MacWindowStyler::displayHdrInfo(window());
+    if (m_displayHdrInfo == info)
+        return;
+    m_displayHdrInfo = info;
+    emit displayHdrInfoChanged();
 }
 
 void MpvPlayer::setSource(const QString &source)
@@ -303,6 +482,10 @@ void MpvPlayer::setSource(const QString &source)
 
 void MpvPlayer::play(const QString &url, double startSeconds)
 {
+    m_fileLoaded = false;
+    // 新片源参数尚未到达前先恢复用户配置，避免上一段 HDR 的输出目标
+    // 短暂污染下一段 SDR 视频。
+    configureHdrOutput({}, true);
     if (m_position != 0) {
         m_position = 0;
         emit positionChanged();
@@ -335,15 +518,20 @@ void MpvPlayer::resetNetworkStats()
     m_cacheIdle = false;
     m_buffering = false;
     m_bufferedRanges.clear();
+    m_videoTargetParams.clear();
+    m_videoSourceParams.clear();
     emit loadRateChanged();
     emit bitrateChanged();
     emit cacheStateChanged();
     emit bufferedRangesChanged();
+    emit videoColorInfoChanged();
 }
 
 void MpvPlayer::stop()
 {
+    m_fileLoaded = false;
     command({"stop"});
+    configureHdrOutput({}, true);
     m_source.clear();
     emit sourceChanged();
 }

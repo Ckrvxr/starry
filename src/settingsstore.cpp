@@ -36,6 +36,44 @@ SettingsStore::SettingsStore(QObject *parent)
     m_hwdec = load(QStringLiteral("hwdec"), QStringLiteral("auto-safe"));
     m_alang = load(QStringLiteral("alang"), QStringLiteral("chi,zho,zh,eng,en"));
     m_slang = load(QStringLiteral("slang"), QStringLiteral("chi,zho,zh,eng,en"));
+    m_mpvConfig = load(QStringLiteral("mpv_config"), defaultMpvConfig());
+}
+
+QString SettingsStore::defaultMpvConfig() const
+{
+    return QStringLiteral(
+        "# 缓存\n"
+        "cache=yes\n"
+        "demuxer-max-bytes=512MiB\n"
+        "demuxer-max-back-bytes=128MiB\n"
+        "\n"
+        "# 音频与语言\n"
+        "audio-channels=7.1,5.1,stereo\n"
+        "alang=en,ja,yue,zh,cmn,zho,chi,nan,hak,wuu\n"
+        "slang=en,ja,yue,zh,cmn,zho,chi,nan,hak,wuu\n"
+        "\n"
+        "# 视频输出（嵌入播放时由 vo=libmpv 接管）\n"
+        "vo=gpu-next\n"
+        "hwdec=auto-safe\n"
+        "fbo-format=rgba16hf\n"
+        "profile=gpu-hq\n"
+        "cscale=ewa_lanczossharp\n"
+        "scale=ewa_lanczossharp\n"
+        "dscale=mitchell\n"
+        "tone-mapping=spline\n"
+        "target-peak=auto\n"
+        "video-output-levels=full\n"
+        "dither=fruit\n"
+        "dither-depth=auto\n"
+        "dither-size-fruit=8\n"
+        "temporal-dither=no\n"
+        "target-prim=auto\n"
+        "target-trc=auto\n"
+        "target-contrast=auto\n"
+        "hdr-compute-peak=yes\n"
+        "hdr-peak-percentile=99.995\n"
+        "hdr-peak-decay-rate=20\n"
+        "gamut-mapping-mode=perceptual\n");
 }
 
 QString SettingsStore::load(const QString &key, const QString &defaultValue) const
@@ -89,4 +127,14 @@ void SettingsStore::setSlang(const QString &value)
     m_slang = value;
     save(QStringLiteral("slang"), value);
     emit slangChanged();
+}
+
+void SettingsStore::setMpvConfig(const QString &value)
+{
+    const QString normalized = value.trimmed() + QLatin1Char('\n');
+    if (m_mpvConfig == normalized)
+        return;
+    m_mpvConfig = normalized;
+    save(QStringLiteral("mpv_config"), normalized);
+    emit mpvConfigChanged();
 }

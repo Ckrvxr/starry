@@ -393,6 +393,7 @@ void EmbyClient::restoreSession()
 
 QVariantMap EmbyClient::mapItem(const QJsonObject &item) const
 {
+    const QString itemId = item.value("Id").toString();
     const qint64 ticks = item.value("RunTimeTicks").toVariant().toLongLong();
     const QJsonObject userData = item.value("UserData").toObject();
     const qint64 positionTicks = userData.value("PlaybackPositionTicks").toVariant().toLongLong();
@@ -407,8 +408,16 @@ QVariantMap EmbyClient::mapItem(const QJsonObject &item) const
     } else {
         subtitle = item.value("ProductionYear").toVariant().toString();
     }
+    QString backdropItemId = itemId;
+    if (type == "Episode" && item.value("BackdropImageTags").toArray().isEmpty()) {
+        backdropItemId = item.value("ParentBackdropItemId").toString();
+        if (backdropItemId.isEmpty())
+            backdropItemId = item.value("SeriesId").toString();
+        if (backdropItemId.isEmpty())
+            backdropItemId = itemId;
+    }
     return {
-        {"id", item.value("Id").toString()},
+        {"id", itemId},
         {"name", item.value("Name").toString()},
         {"type", type},
         {"year", item.value("ProductionYear").toVariant().toString()},
@@ -423,8 +432,8 @@ QVariantMap EmbyClient::mapItem(const QJsonObject &item) const
         {"position", positionTicks / 10000000.0},
         {"played", userData.value("Played").toBool()},
         {"favorite", userData.value("IsFavorite").toBool()},
-        {"image", imageUrl(item.value("Id").toString())},
-        {"backdrop", imageUrl(item.value("Id").toString(), "Backdrop", 1600)},
+        {"image", imageUrl(itemId)},
+        {"backdrop", imageUrl(backdropItemId, "Backdrop", 1600)},
         {"seriesName", item.value("SeriesName").toString()}
     };
 }
@@ -476,7 +485,7 @@ void EmbyClient::loadResume()
         return;
     QUrlQuery query;
     query.addQueryItem("Limit", "12");
-    query.addQueryItem("Fields", "Overview,PrimaryImageAspectRatio,SeriesName,ParentIndexNumber,IndexNumber");
+    query.addQueryItem("Fields", "Overview,Genres,PremiereDate,CommunityRating,PrimaryImageAspectRatio,SeriesName,SeriesId,ParentIndexNumber,IndexNumber,BackdropImageTags,ParentBackdropItemId,ParentBackdropImageTags");
     const QString path = QStringLiteral("/emby/Users/%1/Items/Resume?%2")
         .arg(m_userId, query.toString(QUrl::FullyEncoded));
     request("GET", path, {}, [this](const QJsonObject &json) {
@@ -569,6 +578,38 @@ void EmbyClient::loadItem(const QString &id)
         m_currentItem = mapItem(json);
         emit currentItemChanged();
     });
+}
+
+void EmbyClient::clearWatchHistory(const QString &id)
+{
+    if (!connected() || id.isEmpty())
+        return;
+    const QString itemPath = QStringLiteral("/emby/Users/%1/Items/%2").arg(m_userId, id);
+    request("GET", itemPath, {}, [this, id](const QJsonObject &item) {
+        QJsonObject userData = item.value(QStringLiteral("UserData")).toObject();
+        userData.insert(QStringLiteral("PlaybackPositionTicks"), 0);
+        userData.insert(QStringLiteral("PlayedPercentage"), 0);
+        userData.insert(QStringLiteral("PlayCount"), 0);
+        userData.insert(QStringLiteral("Played"), false);
+        userData.remove(QStringLiteral("LastPlayedDate"));
+        const QString userDataPath = QStringLiteral("/emby/Users/%1/Items/%2/UserData")
+            .arg(m_userId, id);
+        request("POST", userDataPath, userData, [this](const QJsonObject &) {
+            loadResume();
+            loadHot();
+        }, false);
+    }, false);
+}
+
+void EmbyClient::markPlayed(const QString &id)
+{
+    if (!connected() || id.isEmpty())
+        return;
+    const QString path = QStringLiteral("/emby/Users/%1/PlayedItems/%2").arg(m_userId, id);
+    request("POST", path, {}, [this](const QJsonObject &) {
+        loadResume();
+        loadHot();
+    }, false);
 }
 
 QString EmbyClient::imageUrl(const QString &id, const QString &type, int width) const

@@ -52,6 +52,8 @@ public:
     Q_INVOKABLE void loadEpisodes(const QString &seriesId);
     Q_INVOKABLE void search(const QString &term);
     Q_INVOKABLE void loadItem(const QString &id);
+    Q_INVOKABLE void markPlayed(const QString &id);
+    Q_INVOKABLE void clearWatchHistory(const QString &id);
     Q_INVOKABLE QString imageUrl(const QString &id, const QString &type = QStringLiteral("Primary"), int width = 480) const;
     Q_INVOKABLE QString playbackUrl(const QString &id) const;
     Q_INVOKABLE void reportPlaybackStart(const QString &id);

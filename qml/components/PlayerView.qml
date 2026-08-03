@@ -11,10 +11,26 @@ Item {
     property var media: ({})
     property bool controlsVisible: true
     property bool fullscreen: false
+    property bool connectionDetailsVisible: false
     readonly property bool progressReady: player.playing && isFinite(player.duration) && player.duration > 0
 
     signal closeRequested
     signal fullscreenRequested
+
+    component DetailLabel: Text {
+        color: "#817b70"
+        font.pixelSize: 10
+        Layout.alignment: Qt.AlignVCenter
+    }
+
+    component DetailValue: Text {
+        color: "#d9d3c8"
+        font.pixelSize: 10
+        horizontalAlignment: Text.AlignRight
+        elide: Text.ElideRight
+        Layout.fillWidth: true
+        Layout.alignment: Qt.AlignVCenter
+    }
 
     function revealControls() {
         if (!player.playing) {
@@ -22,7 +38,7 @@ Item {
             return;
         }
         controlsVisible = true;
-        if (infoDockHover.hovered || connectionDockHover.hovered || controlDockHover.hovered || volumePopup.visible || audioTrackPopup.visible || subtitleTrackPopup.visible)
+        if (infoDockHover.hovered || connectionDockHover.hovered || root.connectionDetailsVisible || controlDockHover.hovered || volumePopup.visible || audioTrackPopup.visible || subtitleTrackPopup.visible)
             controlsTimer.stop();
         else
             controlsTimer.restart();
@@ -37,12 +53,23 @@ Item {
         return Math.round(rate / 1000) + " KB/s";
     }
 
+    function formatNits(value) {
+        const nits = Number(value || 0);
+        return isFinite(nits) && nits > 0 ? nits.toFixed(nits >= 100 ? 0 : 1) + " nits" : "未报告";
+    }
+
+    function formatHeadroom(value) {
+        const headroom = Number(value || 0);
+        return isFinite(headroom) && headroom > 0 ? headroom.toFixed(2) + "×" : "不可用";
+    }
+
     function start(item) {
         media = item;
         visible = true;
         controlsVisible = true;
+        connectionDetailsVisible = false;
         forceActiveFocus();
-        player.applySettings(settings.hwdec, settings.alang, settings.slang);
+        player.applySettings(settings.mpvConfig);
         player.play(emby.playbackUrl(item.id), item.position || 0);
         emby.reportPlaybackStart(item.id);
         controlsTimer.stop();
@@ -56,6 +83,7 @@ Item {
         player.stop();
         visible = false;
         controlsVisible = true;
+        connectionDetailsVisible = false;
         closeRequested();
     }
 
@@ -121,32 +149,45 @@ Item {
         }
     }
 
-    // 设置页修改 mpv 选项时，对已初始化的播放器即时生效
+    // 设置页保存 MPV 配置时，对已初始化的播放器即时生效
     Connections {
         target: settings
-        function onHwdecChanged() {
-            player.applySettings(settings.hwdec, settings.alang, settings.slang);
+        function onMpvConfigChanged() {
+            player.applySettings(settings.mpvConfig);
         }
-        function onAlangChanged() {
-            player.applySettings(settings.hwdec, settings.alang, settings.slang);
-        }
-        function onSlangChanged() {
-            player.applySettings(settings.hwdec, settings.alang, settings.slang);
+    }
+
+    Timer {
+        id: singleClickTimer
+        interval: 500
+        repeat: false
+        onTriggered: {
+            player.togglePause();
+            root.revealControls();
         }
     }
 
     MouseArea {
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.topMargin: Qt.platform.os === "osx" && !root.fullscreen ? 34 : 0
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton
         cursorShape: root.controlsVisible ? Qt.ArrowCursor : Qt.BlankCursor
 
         onPositionChanged: root.revealControls()
         onClicked: {
-            player.togglePause();
+            root.revealControls();
+            singleClickTimer.restart();
+        }
+        onDoubleClicked: function (mouse) {
+            singleClickTimer.stop();
+            mouse.accepted = true;
+            root.fullscreenRequested();
             root.revealControls();
         }
-        onDoubleClicked: root.fullscreenRequested()
     }
 
     Rectangle {
@@ -311,9 +352,13 @@ Item {
                 return 1;
             return 2;
         }
+        readonly property real resolvedTargetPeak: Number(player.videoTargetParams["max-luma"] || player.targetPeakSetting || 0)
+        readonly property bool targetPeakReported: isFinite(resolvedTargetPeak) && resolvedTargetPeak > 0
+        readonly property bool hdrSource: String(player.videoSourceParams.gamma || "").toLowerCase() === "pq" || String(player.videoSourceParams.gamma || "").toLowerCase() === "hlg"
+        readonly property bool edrActive: hdrSource && player.displayHdrInfo.edrLayerEnabled
         readonly property real naturalWidth: Math.max(connectionTitleMetrics.advanceWidth, connectionAverageMetrics.advanceWidth, connectionNeedMetrics.advanceWidth) + 58
-        width: Math.min(300, root.width - infoDock.width - 66, naturalWidth)
-        height: 72
+        width: root.connectionDetailsVisible ? Math.min(380, root.width - 44) : Math.min(300, root.width - infoDock.width - 66, naturalWidth)
+        height: root.connectionDetailsVisible ? 320 : 72
         radius: 26
         color: "#d9141412"
         border.width: 1
@@ -335,6 +380,12 @@ Item {
             }
         }
         Behavior on width {
+            NumberAnimation {
+                duration: 180
+                easing.type: Easing.OutCubic
+            }
+        }
+        Behavior on height {
             NumberAnimation {
                 duration: 180
                 easing.type: Easing.OutCubic
@@ -376,7 +427,8 @@ Item {
             anchors.leftMargin: 18
             anchors.right: connectionStateIcon.left
             anchors.rightMargin: 8
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 13
             spacing: 2
 
             Text {
@@ -412,11 +464,121 @@ Item {
             id: connectionStateIcon
             anchors.right: parent.right
             anchors.rightMargin: 17
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 28
             width: 15
             height: 15
             name: "server"
             color: connectionDock.qualityLevel === 0 ? "#ef6a5b" : connectionDock.qualityLevel === 1 ? "#e6a34a" : "#55d99a"
+        }
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.topMargin: 72
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
+            height: 1
+            color: "#25ffffff"
+            visible: root.connectionDetailsVisible
+        }
+
+        Column {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.topMargin: 86
+            anchors.leftMargin: 18
+            anchors.rightMargin: 18
+            spacing: 9
+            visible: root.connectionDetailsVisible
+            opacity: root.connectionDetailsVisible ? 1 : 0
+
+            Text {
+                width: parent.width
+                text: connectionDock.edrActive ? "EDR 输出已生效" : connectionDock.targetPeakReported ? "MPV 已设置输出目标" : "未获得目标峰值 · 可能使用自动回退"
+                color: connectionDock.edrActive || connectionDock.targetPeakReported ? "#78d9a2" : "#e5a85a"
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+            }
+
+            GridLayout {
+                width: parent.width
+                columns: 2
+                columnSpacing: 14
+                rowSpacing: 6
+
+                DetailLabel {
+                    text: "目标峰值"
+                }
+                DetailValue {
+                    text: root.formatNits(connectionDock.resolvedTargetPeak)
+                }
+
+                DetailLabel {
+                    text: "目标 TRC / 色域"
+                }
+                DetailValue {
+                    text: String(player.videoTargetParams.gamma || player.targetTrcSetting || "未知") + " / " + String(player.videoTargetParams.primaries || player.targetPrimSetting || "未知")
+                }
+
+                DetailLabel {
+                    text: "target-peak"
+                }
+                DetailValue {
+                    text: player.targetPeakSetting || "auto"
+                }
+
+                DetailLabel {
+                    text: "源 HDR 峰值"
+                }
+                DetailValue {
+                    text: root.formatNits(player.videoSourceParams["max-cll"] || player.videoSourceParams["max-luma"])
+                }
+
+                DetailLabel {
+                    text: "源 TRC / 色域"
+                }
+                DetailValue {
+                    text: String(player.videoSourceParams.gamma || "未知") + " / " + String(player.videoSourceParams.primaries || "未知")
+                }
+
+                DetailLabel {
+                    text: "Mac 当前 / 最大 EDR"
+                }
+                DetailValue {
+                    text: root.formatHeadroom(player.displayHdrInfo.currentHeadroom) + " / " + root.formatHeadroom(player.displayHdrInfo.potentialHeadroom)
+                }
+
+                DetailLabel {
+                    text: "参考 EDR"
+                }
+                DetailValue {
+                    text: root.formatHeadroom(player.displayHdrInfo.referenceHeadroom)
+                }
+
+                DetailLabel {
+                    text: "EDR 输出层"
+                }
+                DetailValue {
+                    text: player.displayHdrInfo.edrLayerEnabled ? "已开启 · " + (player.displayHdrInfo.floatSurface ? String(player.displayHdrInfo.surfaceColorBits || 64) + "-bit Float" : "表面非 Float") + " · " + root.formatHeadroom(player.displayHdrInfo.contentHeadroom) : "未开启"
+                    color: player.displayHdrInfo.edrLayerEnabled && player.displayHdrInfo.floatSurface ? "#78d9a2" : "#e5a85a"
+                }
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+                root.connectionDetailsVisible = !root.connectionDetailsVisible;
+                if (root.connectionDetailsVisible)
+                    player.refreshDisplayHdrInfo();
+                root.revealControls();
+            }
         }
     }
 
@@ -954,7 +1116,7 @@ Item {
     Timer {
         id: controlsTimer
         interval: 3000
-        onTriggered: if (!infoDockHover.hovered && !connectionDockHover.hovered && !controlDockHover.hovered && !volumePopup.visible && !audioTrackPopup.visible && !subtitleTrackPopup.visible)
+        onTriggered: if (!infoDockHover.hovered && !connectionDockHover.hovered && !root.connectionDetailsVisible && !controlDockHover.hovered && !volumePopup.visible && !audioTrackPopup.visible && !subtitleTrackPopup.visible)
             root.controlsVisible = false
     }
 

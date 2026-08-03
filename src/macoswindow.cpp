@@ -39,6 +39,11 @@ QRegion roundedRegion(const QSize &size, int radius)
 
 namespace MacWindowStyler {
 
+bool prepareEdrRendering(QQuickWindow *)
+{
+    return false;
+}
+
 void apply(QQuickWindow *window)
 {
     if (!window)
@@ -53,6 +58,19 @@ void apply(QQuickWindow *window)
     QObject::connect(window, &QQuickWindow::widthChanged, window, updateMask);
     QObject::connect(window, &QQuickWindow::heightChanged, window, updateMask);
     QTimer::singleShot(0, window, updateMask);
+}
+
+void setEdrEnabled(QQuickWindow *, bool)
+{
+}
+
+QVariantMap displayHdrInfo(QQuickWindow *)
+{
+    return {
+        {QStringLiteral("available"), false},
+        {QStringLiteral("edrSupported"), false},
+        {QStringLiteral("edrLayerEnabled"), false}
+    };
 }
 
 }

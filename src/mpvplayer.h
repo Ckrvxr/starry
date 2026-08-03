@@ -4,6 +4,7 @@
 #include <QQuickFramebufferObject>
 #include <QStringList>
 #include <QVariantList>
+#include <QVariantMap>
 
 struct mpv_handle;
 struct mpv_event;
@@ -28,10 +29,18 @@ class MpvPlayer : public QQuickFramebufferObject
     Q_PROPERTY(bool cacheIdle READ cacheIdle NOTIFY cacheStateChanged)
     Q_PROPERTY(bool buffering READ buffering NOTIFY cacheStateChanged)
     Q_PROPERTY(QVariantList bufferedRanges READ bufferedRanges NOTIFY bufferedRangesChanged)
+    Q_PROPERTY(QVariantMap videoTargetParams READ videoTargetParams NOTIFY videoColorInfoChanged)
+    Q_PROPERTY(QVariantMap videoSourceParams READ videoSourceParams NOTIFY videoColorInfoChanged)
+    Q_PROPERTY(QString targetPeakSetting READ targetPeakSetting NOTIFY videoColorInfoChanged)
+    Q_PROPERTY(QString targetTrcSetting READ targetTrcSetting NOTIFY videoColorInfoChanged)
+    Q_PROPERTY(QString targetPrimSetting READ targetPrimSetting NOTIFY videoColorInfoChanged)
+    Q_PROPERTY(QVariantMap displayHdrInfo READ displayHdrInfo NOTIFY displayHdrInfoChanged)
 
 public:
     explicit MpvPlayer(QQuickItem *parent = nullptr);
     ~MpvPlayer() override;
+
+    static void setInitialConfig(const QString &config);
 
     Renderer *createRenderer() const override;
     QString source() const { return m_source; }
@@ -51,6 +60,12 @@ public:
     bool cacheIdle() const { return m_cacheIdle; }
     bool buffering() const { return m_buffering; }
     QVariantList bufferedRanges() const { return m_bufferedRanges; }
+    QVariantMap videoTargetParams() const { return m_videoTargetParams; }
+    QVariantMap videoSourceParams() const { return m_videoSourceParams; }
+    QString targetPeakSetting() const { return m_targetPeakSetting; }
+    QString targetTrcSetting() const { return m_targetTrcSetting; }
+    QString targetPrimSetting() const { return m_targetPrimSetting; }
+    QVariantMap displayHdrInfo() const { return m_displayHdrInfo; }
 
     void setSource(const QString &source);
     void setPaused(bool paused);
@@ -63,7 +78,8 @@ public:
     Q_INVOKABLE void seekRelative(double seconds);
     Q_INVOKABLE void selectAudioTrack(int id);
     Q_INVOKABLE void selectSubtitleTrack(int id);
-    Q_INVOKABLE void applySettings(const QString &hwdec, const QString &alang, const QString &slang);
+    Q_INVOKABLE void applySettings(const QString &config);
+    Q_INVOKABLE void refreshDisplayHdrInfo();
 
 signals:
     void sourceChanged();
@@ -79,6 +95,8 @@ signals:
     void bitrateChanged();
     void cacheStateChanged();
     void bufferedRangesChanged();
+    void videoColorInfoChanged();
+    void displayHdrInfoChanged();
     void playbackEnded();
     void mpvError(const QString &message);
 
@@ -93,6 +111,9 @@ private:
     void updateTracks(const QVariantList &tracks);
     void updateChapters(const QVariantList &chapters);
     void resetNetworkStats();
+    void configureHdrOutput(const QVariantMap &sourceParams, bool force = false);
+    QString configuredValue(const QString &key, const QString &fallback) const;
+    void setMpvProperty(const char *name, const QString &value);
 
     mpv_handle *m_mpv = nullptr;
     QString m_source;
@@ -114,4 +135,13 @@ private:
     bool m_cacheIdle = false;
     bool m_buffering = false;
     QVariantList m_bufferedRanges;
+    QVariantMap m_videoTargetParams;
+    QVariantMap m_videoSourceParams;
+    QString m_targetPeakSetting;
+    QString m_targetTrcSetting;
+    QString m_targetPrimSetting;
+    QVariantMap m_displayHdrInfo;
+    QString m_userConfig;
+    bool m_edrOutputEnabled = false;
+    bool m_fileLoaded = false;
 };

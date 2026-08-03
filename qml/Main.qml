@@ -11,7 +11,9 @@ ApplicationWindow {
     y: Math.round((Screen.desktopAvailableHeight - height) / 2)
     minimumWidth: 980
     minimumHeight: 640
-    visible: true
+    // C++ 会在注入 64-bit 浮点 OpenGL 上下文后显示窗口，避免 Qt Quick
+    // 抢先创建普通 8-bit 场景图表面。
+    visible: false
     title: "Starry"
     color: "#0b0b09"
     flags: Qt.Window | Qt.FramelessWindowHint
@@ -24,7 +26,8 @@ ApplicationWindow {
     property var detailMedia: ({})
     property bool pageTransitionActive: false
     readonly property string activePageKey: settingsVisible ? "settings" : detailVisible ? "detail:" + String(detailMedia.id || "") : selectedNav === 0 ? "home" : "library:" + String(selectedNav)
-    readonly property var homeHeroItems: emby.hotItems.length > 0 ? emby.hotItems : emby.items
+    readonly property bool homeHeroUsesResume: emby.resumeItems.length > 0
+    readonly property var homeHeroItems: homeHeroUsesResume ? emby.resumeItems : (emby.hotItems.length > 0 ? emby.hotItems : emby.items)
     readonly property int homeHeroCount: Math.min(5, homeHeroItems.length)
     readonly property var homeHero: homeHeroCount > 0 ? homeHeroItems[Math.min(homeHeroIndex, homeHeroCount - 1)] : ({})
     property bool isFullscreen: visibility === Window.FullScreen
@@ -498,6 +501,7 @@ ApplicationWindow {
                         currentIndex: window.homeHeroIndex
                         itemCount: window.homeHeroCount
                         resume: emby.resumeItems
+                        continueMode: window.homeHeroUsesResume
 
                         onPlayRequested: playerLayer.start(window.homeHero)
                         onResumePlayRequested: function (item) {
@@ -507,13 +511,6 @@ ApplicationWindow {
                         onNextRequested: window.stepHomeHero(1)
                         onIndexRequested: function (index) {
                             window.homeHeroIndex = index;
-                        }
-
-                        Timer {
-                            interval: 8000
-                            repeat: true
-                            running: homeHeroPage.visible && window.homeHeroCount > 1
-                            onTriggered: window.stepHomeHero(1)
                         }
                     }
 
@@ -748,6 +745,13 @@ ApplicationWindow {
         }
         function onItemsChanged() {
             if (window.homeHeroIndex >= window.homeHeroCount)
+                window.homeHeroIndex = 0;
+        }
+        function onResumeItemsChanged() {
+            window.homeHeroIndex = 0;
+        }
+        function onHotItemsChanged() {
+            if (!window.homeHeroUsesResume && window.homeHeroIndex >= window.homeHeroCount)
                 window.homeHeroIndex = 0;
         }
     }

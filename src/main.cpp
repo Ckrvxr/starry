@@ -32,6 +32,7 @@ int main(int argc, char *argv[])
 
     EmbyClient emby;
     SettingsStore settings;
+    MpvPlayer::setInitialConfig(settings.mpvConfig());
     QQmlApplicationEngine engine;
     engine.addImageProvider(QStringLiteral("cached"), new CachedImageProvider);
     engine.rootContext()->setContextProperty(QStringLiteral("emby"), &emby);
@@ -40,9 +41,16 @@ int main(int argc, char *argv[])
                      &app, [] { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
     engine.loadFromModule("Starry", "Main");
 
-    if (auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().constFirst())) {
-        MacWindowStyler::apply(window);
-        QMetaObject::invokeMethod(window, [window] { MacWindowStyler::apply(window); }, Qt::QueuedConnection);
+    const QList<QObject *> rootObjects = engine.rootObjects();
+    if (!rootObjects.isEmpty()) {
+        auto *window = qobject_cast<QQuickWindow *>(rootObjects.constFirst());
+        if (window) {
+            if (!MacWindowStyler::prepareEdrRendering(window))
+                qWarning() << "[EDR] 无法创建 64-bit 浮点 OpenGL 输出表面，将使用平台默认表面";
+            MacWindowStyler::apply(window);
+            QMetaObject::invokeMethod(window, [window] { MacWindowStyler::apply(window); }, Qt::QueuedConnection);
+            window->show();
+        }
     }
 
     return app.exec();
