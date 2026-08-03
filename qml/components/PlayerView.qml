@@ -311,10 +311,10 @@ Item {
                 return 1;
             return 2;
         }
-        readonly property real naturalWidth: Math.max(connectionTitleMetrics.advanceWidth, connectionAverageMetrics.advanceWidth) + 58
-        width: Math.max(170, Math.min(300, root.width - infoDock.width - 66, naturalWidth))
-        height: 54
-        radius: 27
+        readonly property real naturalWidth: Math.max(connectionTitleMetrics.advanceWidth, connectionAverageMetrics.advanceWidth, connectionNeedMetrics.advanceWidth) + 58
+        width: Math.min(300, root.width - infoDock.width - 66, naturalWidth)
+        height: 72
+        radius: 26
         color: "#d9141412"
         border.width: 1
         border.color: "#35ffffff"
@@ -353,6 +353,12 @@ Item {
             text: connectionAverageText.text
         }
 
+        TextMetrics {
+            id: connectionNeedMetrics
+            font: connectionNeedText.font
+            text: connectionNeedText.text
+        }
+
         HoverHandler {
             id: connectionDockHover
             onHoveredChanged: {
@@ -368,8 +374,8 @@ Item {
         Column {
             anchors.left: parent.left
             anchors.leftMargin: 18
-            anchors.right: connectionStateDot.left
-            anchors.rightMargin: 12
+            anchors.right: connectionStateIcon.left
+            anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter
             spacing: 2
 
@@ -386,24 +392,31 @@ Item {
             Text {
                 id: connectionAverageText
                 width: parent.width
-                text: "Avg. " + root.formatLoadRate(player.averageLoadRate) + " / Need. " + root.formatLoadRate(connectionDock.requiredLoadRate)
+                text: "Avg. " + root.formatLoadRate(player.averageLoadRate)
+                color: "#918b80"
+                font.pixelSize: 10
+                elide: Text.ElideRight
+            }
+
+            Text {
+                id: connectionNeedText
+                width: parent.width
+                text: "Need. " + root.formatLoadRate(connectionDock.requiredLoadRate)
                 color: "#918b80"
                 font.pixelSize: 10
                 elide: Text.ElideRight
             }
         }
 
-        Rectangle {
-            id: connectionStateDot
+        LucideIcon {
+            id: connectionStateIcon
             anchors.right: parent.right
             anchors.rightMargin: 17
             anchors.verticalCenter: parent.verticalCenter
-            width: 7
-            height: 7
-            radius: 4
+            width: 15
+            height: 15
+            name: "server"
             color: connectionDock.qualityLevel === 0 ? "#ef6a5b" : connectionDock.qualityLevel === 1 ? "#e6a34a" : "#55d99a"
-            border.width: 1
-            border.color: "#44110f0a"
         }
     }
 
@@ -413,8 +426,8 @@ Item {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 24
         width: Math.min(900, root.width - 48)
-        height: 72
-        radius: 27
+        height: 56
+        radius: 22
         color: "#e6141412"
         border.width: 1
         border.color: "#3cffffff"
@@ -456,14 +469,14 @@ Item {
             anchors.fill: parent
             anchors.leftMargin: 14
             anchors.rightMargin: 14
-            anchors.topMargin: 10
-            anchors.bottomMargin: 10
+            anchors.topMargin: 6
+            anchors.bottomMargin: 6
             spacing: 8
 
             Button {
                 id: playPauseButton
-                Layout.preferredWidth: 48
-                Layout.preferredHeight: 48
+                Layout.preferredWidth: 40
+                Layout.preferredHeight: 40
                 Layout.alignment: Qt.AlignVCenter
                 hoverEnabled: true
                 text: player.paused ? "播放" : "暂停"
@@ -478,7 +491,11 @@ Item {
                     }
                 }
                 background: Rectangle {
-                    radius: 24
+                    x: (playPauseButton.width - width) / 2
+                    y: (playPauseButton.height - height) / 2
+                    width: 34
+                    height: 34
+                    radius: 17
                     color: playPauseButton.down ? "#bd9847" : playPauseButton.hovered ? "#f0d183" : "#d9b45d"
                     border.width: 1
                     border.color: playPauseButton.hovered ? "#f8e1a9" : "#e7c979"
@@ -546,11 +563,29 @@ Item {
                     radius: 2
                     color: "#4b4842"
 
+                    Repeater {
+                        model: player.bufferedRanges
+
+                        delegate: Rectangle {
+                            required property var modelData
+                            readonly property real rangeStart: Math.max(0, Number(modelData["start"] || 0))
+                            readonly property real rangeEnd: Math.min(player.duration, Number(modelData["end"] || 0))
+                            visible: player.duration > 0 && rangeEnd > rangeStart
+                            x: parent.width * rangeStart / player.duration
+                            width: Math.max(1, parent.width * (rangeEnd - rangeStart) / player.duration)
+                            height: parent.height
+                            radius: 2
+                            color: "#817969"
+                            z: 0
+                        }
+                    }
+
                     Rectangle {
                         width: timeline.visualPosition * parent.width
                         height: parent.height
                         radius: 2
                         color: "#d9b45d"
+                        z: 1
                     }
 
                     Repeater {

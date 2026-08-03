@@ -159,6 +159,7 @@ MpvPlayer::MpvPlayer(QQuickItem *parent)
     mpv_observe_property(m_mpv, 10, "audio-bitrate", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 11, "demuxer-cache-idle", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 12, "paused-for-cache", MPV_FORMAT_FLAG);
+    mpv_observe_property(m_mpv, 13, "demuxer-cache-state", MPV_FORMAT_NODE);
     mpv_set_wakeup_callback(m_mpv, &MpvPlayer::wakeup, this);
 }
 
@@ -236,6 +237,21 @@ void MpvPlayer::handleEvent(mpv_event *event)
         } else if (name == "paused-for-cache") {
             m_buffering = *static_cast<int *>(property->data) != 0;
             emit cacheStateChanged();
+        } else if (name == "demuxer-cache-state") {
+            const auto *node = static_cast<mpv_node *>(property->data);
+            const QVariantMap state = nodeToVariant(*node).toMap();
+            QVariantList ranges = state.value(QStringLiteral("seekable-ranges")).toList();
+            if (ranges.isEmpty() && state.contains(QStringLiteral("reader-pts"))
+                && state.contains(QStringLiteral("cache-end"))) {
+                ranges.append(QVariantMap{
+                    {QStringLiteral("start"), state.value(QStringLiteral("reader-pts"))},
+                    {QStringLiteral("end"), state.value(QStringLiteral("cache-end"))}
+                });
+            }
+            if (m_bufferedRanges != ranges) {
+                m_bufferedRanges = ranges;
+                emit bufferedRangesChanged();
+            }
         }
     } else if (event->event_id == MPV_EVENT_FILE_LOADED) {
         if (!m_playing) { m_playing = true; emit playingChanged(); }
@@ -318,9 +334,11 @@ void MpvPlayer::resetNetworkStats()
     m_audioBitrate = 0;
     m_cacheIdle = false;
     m_buffering = false;
+    m_bufferedRanges.clear();
     emit loadRateChanged();
     emit bitrateChanged();
     emit cacheStateChanged();
+    emit bufferedRangesChanged();
 }
 
 void MpvPlayer::stop()

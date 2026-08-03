@@ -27,6 +27,7 @@ class MpvPlayer : public QQuickFramebufferObject
     Q_PROPERTY(double audioBitrate READ audioBitrate NOTIFY bitrateChanged)
     Q_PROPERTY(bool cacheIdle READ cacheIdle NOTIFY cacheStateChanged)
     Q_PROPERTY(bool buffering READ buffering NOTIFY cacheStateChanged)
+    Q_PROPERTY(QVariantList bufferedRanges READ bufferedRanges NOTIFY bufferedRangesChanged)
 
 public:
     explicit MpvPlayer(QQuickItem *parent = nullptr);
@@ -49,6 +50,7 @@ public:
     double audioBitrate() const { return m_audioBitrate; }
     bool cacheIdle() const { return m_cacheIdle; }
     bool buffering() const { return m_buffering; }
+    QVariantList bufferedRanges() const { return m_bufferedRanges; }
 
     void setSource(const QString &source);
     void setPaused(bool paused);
@@ -76,6 +78,7 @@ signals:
     void loadRateChanged();
     void bitrateChanged();
     void cacheStateChanged();
+    void bufferedRangesChanged();
     void playbackEnded();
     void mpvError(const QString &message);
 
@@ -110,4 +113,5 @@ private:
     double m_audioBitrate = 0;
     bool m_cacheIdle = false;
     bool m_buffering = false;
+    QVariantList m_bufferedRanges;
 };
